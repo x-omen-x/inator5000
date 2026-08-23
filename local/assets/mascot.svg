@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="200" height="160">
+  <!-- dog head -->
+  <ellipse cx="100" cy="95" rx="55" ry="48" fill="#111" stroke="#00ff41" stroke-width="3"/>
+  <!-- ears -->
+  <path d="M55 70 Q40 30 60 55" fill="#111" stroke="#00ff41" stroke-width="2.5"/>
+  <path d="M145 70 Q160 30 140 55" fill="#111" stroke="#00ff41" stroke-width="2.5"/>
+  <!-- antlers -->
+  <path d="M70 45 Q55 15 45 25 Q50 5 65 20" fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+  <path d="M130 45 Q145 15 155 25 Q150 5 135 20" fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+  <path d="M60 30 Q50 10 55 5" fill="none" stroke="#00ff41" stroke-width="2"/>
+  <path d="M140 30 Q150 10 145 5" fill="none" stroke="#00ff41" stroke-width="2"/>
+  <!-- eyes -->
+  <circle cx="80" cy="90" r="8" fill="#00ff41"/>
+  <circle cx="120" cy="90" r="8" fill="#00ff41"/>
+  <circle cx="82" cy="88" r="3" fill="#000"/>
+  <circle cx="122" cy="88" r="3" fill="#000"/>
+  <!-- snout -->
+  <ellipse cx="100" cy="115" rx="18" ry="12" fill="#222" stroke="#00ff41" stroke-width="1.5"/>
+  <ellipse cx="100" cy="112" rx="6" ry="4" fill="#00ff41"/>
+  <!-- glow -->
+  <circle cx="100" cy="95" r="70" fill="none" stroke="#00ff41" stroke-width="1" opacity="0.3"/>
+</svg>

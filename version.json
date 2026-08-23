@@ -1,0 +1,6 @@
+{
+  "build": "2026-08-23-2",
+  "note": "hand-animated splat · smoother on phones · LAN pairing fixed",
+  "css": ["styles.css", "local/five-thousand.css"],
+  "js": ["local/cloudyplap.js", "local/splat.js", "local/five-thousand.js", "local/lan-copy.js"]
+}

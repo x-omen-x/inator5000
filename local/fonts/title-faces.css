@@ -1,0 +1,81 @@
+/* Bundled for offline after first load.
+   Title: Anton + Bebas Neue (MAGA condensed gothic, Google Fonts, SIL OFL).
+   Subtitle: Ghastly Panic by Chad Savage / Sinister Fonts (2005, free).
+   Exact TTF from sinisterfonts.com — not generated. */
+
+@font-face {
+  font-family: "Anton";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("anton.woff2") format("woff2"), url("anton.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Bebas Neue";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("bebasneue.woff2") format("woff2"), url("bebasneue.ttf") format("truetype");
+}
+@font-face {
+  font-family: "New Rocker";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("newrocker.woff2") format("woff2"), url("newrocker.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Eater";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("eater.woff2") format("woff2"), url("eater.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Creepster";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("creepster.woff2") format("woff2"), url("creepster.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Ghastly Panic";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("ghastly-panic.ttf") format("truetype");
+}
+
+/* "5000" lockup: the Bungee layer family by David Jonathan Ross (Google Fonts,
+   SIL OFL 1.1). Bungee Shade carries the drop-shadow extrusion, Bungee the solid
+   face, Bungee Inline the cut highlight — the family is drawn to be stacked.
+   Exact woff2 files pulled from fonts.gstatic.com — not generated. */
+
+@font-face {
+  font-family: "Bungee";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("bungee.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Bungee Shade";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("bungee-shade.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Bungee Inline";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("bungee-inline.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Bungee Outline";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("bungee-outline.woff2") format("woff2");
+}

@@ -1,0 +1,49 @@
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/orbitron.woff2") format("woff2"), url("fonts/f0.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("fonts/orbitron.woff2") format("woff2"), url("fonts/f1.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("fonts/orbitron.woff2") format("woff2"), url("fonts/f2.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Share Tech Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/share-tech-mono.woff2") format("woff2"), url("fonts/f3.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Teko";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/f4.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Matrix Code NFI";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/matrix-code-nfi.woff") format("woff");
+}
+@font-face {
+  font-family: "Matrix";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/matrix.woff") format("woff");
+}

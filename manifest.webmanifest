@@ -1,0 +1,22 @@
+{
+  "name": "omens plapinator",
+  "short_name": "plapinator",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#39ff6a",
+  "icons": [
+    {
+      "src": "local/assets/app-icon.png",
+      "sizes": "any",
+      "type": "image/png"
+    },
+    {
+      "src": "local/assets/app-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

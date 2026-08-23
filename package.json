@@ -1,0 +1,12 @@
+{
+  "name": "gooninator-reloaded",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline-first local slideshow player with direct LAN sharing.",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^3.0.0"
+  }
+}
