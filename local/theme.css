@@ -87,6 +87,8 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
 #theme-smoke-puff .smoke-wisp-video {
   opacity: 0.44;
   filter: contrast(1.05) brightness(1.05) blur(0.35px);
+  -webkit-mask-image: radial-gradient(ellipse 46% 42% at 50% 68%, #000 0%, #000 38%, rgba(0, 0, 0, 0.74) 56%, transparent 100%);
+  mask-image: radial-gradient(ellipse 46% 42% at 50% 68%, #000 0%, #000 38%, rgba(0, 0, 0, 0.74) 56%, transparent 100%);
 }
 
 #tina-pipe {
