@@ -1,13 +1,12 @@
 {
-  "build": "2026-08-24-1",
-  "note": "Sharing removed · recorder, storage, install, accessibility, and exports repaired",
-  "reload": true,
+  "build": "2026-08-25-2",
+  "note": "Mascot click repaired · TINA MODE now toggles smoke and its visible indicator",
+  "reload": false,
   "css": [
     "styles.css",
     "local/five-thousand.css"
   ],
   "js": [
-    "local/core-reload.js",
     "local/cloudyplap.js",
     "local/splat.js",
     "local/five-thousand.js"

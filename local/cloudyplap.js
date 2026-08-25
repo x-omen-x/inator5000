@@ -74,12 +74,15 @@
     return s;
   }
 
-  // Decoration only: the mascot has no click behaviour, so it is a plain
-  // element rather than a button and takes no focus or pointer events.
-  const mascot = document.createElement("span");
+  // The mascot is the only control for TINA MODE. Keep it a real button so
+  // touch, mouse and keyboard activation all take the same path.
+  const mascot = document.createElement("button");
+  mascot.type = "button";
   mascot.id = "omen-mascot";
   mascot.className = "brand-mascot";
-  mascot.setAttribute("aria-hidden", "true");
+  mascot.setAttribute("aria-label", "Activate TINA MODE");
+  mascot.setAttribute("aria-pressed", "false");
+  mascot.title = "Activate TINA MODE";
   const mascotFrames = {
     idle: BASE + "assets/mascot-idle.png",
     half: BASE + "assets/mascot-wink-half.png",
@@ -108,6 +111,15 @@
     sub.appendChild(mascot);
     sub.appendChild(word("plapinator"));
   }
+
+  document.getElementById("tina-mode-indicator")?.remove();
+  const tinaIndicator = document.createElement("div");
+  tinaIndicator.id = "tina-mode-indicator";
+  tinaIndicator.setAttribute("role", "status");
+  tinaIndicator.setAttribute("aria-live", "polite");
+  tinaIndicator.textContent = "TINA MODE";
+  tinaIndicator.hidden = true;
+  document.body.appendChild(tinaIndicator);
   on(theme, "error", () => {
     document.body.classList.remove("theme-cloudyplap", "smoke-on");
     if (brand) {
@@ -160,9 +172,10 @@
   const oldIntro = document.getElementById("intro-glitch");
   if (oldIntro) oldIntro.remove();
 
-  // The reel smoke used to wait for a tap on the mascot to arm itself. With the
-  // mascot inert it is simply on, and still only draws while the reel plays.
-  document.body.classList.add("smoke-on");
+  // TINA MODE always starts inactive. It can only be changed by activating the
+  // mascot, which also makes the current state visible and accessible.
+  document.body.classList.remove("smoke-on");
+  let tinaActive = false;
 
   function showFace(key) {
     Object.keys(mascotImgs).forEach((k) => {
@@ -182,6 +195,20 @@
     };
     tick();
   }
+
+  function setTinaMode(active) {
+    tinaActive = Boolean(active);
+    document.body.classList.toggle("smoke-on", tinaActive);
+    mascot.setAttribute("aria-pressed", String(tinaActive));
+    mascot.setAttribute("aria-label", `${tinaActive ? "Deactivate" : "Activate"} TINA MODE`);
+    mascot.title = `${tinaActive ? "Deactivate" : "Activate"} TINA MODE`;
+    tinaIndicator.hidden = !tinaActive;
+    if (tinaActive) playCartoon(["half", "wink", "tongue", "idle"], 125);
+    else playCartoon(["tongue", "half", "idle"], 110);
+  }
+
+  on(mascot, "click", () => setTinaMode(!tinaActive));
+
   function randomFace() {
     playCartoon(["tongue", "tongue", "tongue", "idle"], 220);
     later(randomFace, 4800 + Math.random() * 5000);
@@ -213,14 +240,41 @@
     <div class="smoke-still two" style="background-image:url(${BASE}assets/smoke-wisps.jpg)"></div>
   `;
 
+  // A low-cost still layer goes behind the main interface and another drifts
+  // in front. The fullscreen player gets its own pair below so the effect
+  // surrounds both layouts without competing with audio decoding on phones.
+  const stillSmoke = `
+    <div class="smoke-still" style="background-image:url(${BASE}assets/smoke-ref.jpg)"></div>
+    <div class="smoke-still two" style="background-image:url(${BASE}assets/smoke-wisps.jpg)"></div>
+    <div class="haze"></div>`;
+  ["theme-smoke-back", "theme-smoke-front"].forEach((id) => document.getElementById(id)?.remove());
+  const themeSmokeBack = document.createElement("div");
+  themeSmokeBack.id = "theme-smoke-back";
+  themeSmokeBack.setAttribute("aria-hidden", "true");
+  themeSmokeBack.innerHTML = stillSmoke;
+  document.body.appendChild(themeSmokeBack);
+  const themeSmokeFront = document.createElement("div");
+  themeSmokeFront.id = "theme-smoke-front";
+  themeSmokeFront.setAttribute("aria-hidden", "true");
+  themeSmokeFront.innerHTML = stillSmoke;
+  document.body.appendChild(themeSmokeFront);
+
   const player = document.getElementById("player");
+  document.getElementById("reel-smoke-back")?.remove();
   document.getElementById("reel-smoke")?.remove();
+  const reelSmokeBack = document.createElement("div");
+  reelSmokeBack.id = "reel-smoke-back";
+  reelSmokeBack.setAttribute("aria-hidden", "true");
+  reelSmokeBack.innerHTML = stillSmoke;
   const reelSmoke = document.createElement("div");
   reelSmoke.id = "reel-smoke";
   reelSmoke.setAttribute("aria-hidden", "true");
   reelSmoke.innerHTML =
     smokeVids + `<div class="haze"></div>` + (lean ? "" : `<canvas id="smoke-particles"></canvas>`);
-  if (player) player.insertBefore(reelSmoke, player.firstChild);
+  if (player) {
+    player.insertBefore(reelSmokeBack, player.firstChild);
+    player.insertBefore(reelSmoke, player.firstChild);
+  }
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const smokeVideos = [...reelSmoke.querySelectorAll(".smoke-vid")];
@@ -419,6 +473,11 @@
       }
     });
     reelSmoke.remove();
+    reelSmokeBack.remove();
+    themeSmokeBack.remove();
+    themeSmokeFront.remove();
+    tinaIndicator.remove();
+    document.body.classList.remove("smoke-on");
     glow.remove();
     mascot.remove();
     window.__cloudyplap = false;

@@ -19,17 +19,21 @@ body.theme-cloudyplap .sentinel-chitin-bracket {
   display: none !important;
 }
 
-#reel-smoke {
+#reel-smoke,
+#reel-smoke-back {
   display: none;
   position: absolute;
   inset: 0;
-  z-index: 12;
   pointer-events: none;
   overflow: hidden;
   mix-blend-mode: screen;
 }
 
-body.theme-cloudyplap.smoke-on #player.on #reel-smoke {
+#reel-smoke { z-index: 12; }
+#reel-smoke-back { z-index: 8; }
+
+body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
+body.theme-cloudyplap.smoke-on #player.on #reel-smoke-back {
   display: block;
 }
 
@@ -49,7 +53,10 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke {
   filter: contrast(1.6) brightness(1.5) blur(1.1px);
   animation: smoke-drift 52s linear infinite reverse;
 }
-#reel-smoke .smoke-still {
+#reel-smoke .smoke-still,
+#reel-smoke-back .smoke-still,
+#theme-smoke-back .smoke-still,
+#theme-smoke-front .smoke-still {
   position: absolute;
   inset: -18%;
   background-size: cover;
@@ -57,13 +64,19 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke {
   opacity: 0.38;
   animation: smoke-drift 38s linear infinite;
 }
-#reel-smoke .smoke-still.two {
+#reel-smoke .smoke-still.two,
+#reel-smoke-back .smoke-still.two,
+#theme-smoke-back .smoke-still.two,
+#theme-smoke-front .smoke-still.two {
   opacity: 0.3;
   animation-duration: 57s;
   animation-direction: reverse;
   filter: blur(5px);
 }
-#reel-smoke .haze {
+#reel-smoke .haze,
+#reel-smoke-back .haze,
+#theme-smoke-back .haze,
+#theme-smoke-front .haze {
   position: absolute;
   inset: 0;
   mix-blend-mode: screen;
@@ -336,8 +349,10 @@ body.theme-cloudyplap .brand-mascot {
   outline: none;
   background: transparent !important;
   box-shadow: none !important;
-  cursor: default;
-  pointer-events: none;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   height: clamp(4.4rem, 16vw, 8.6rem);
   width: auto;
   aspect-ratio: 604 / 760;
@@ -346,6 +361,17 @@ body.theme-cloudyplap .brand-mascot {
   z-index: 2;
   overflow: visible;
   filter: drop-shadow(0 0 8px rgba(40, 180, 80, 0.22));
+}
+body.theme-cloudyplap .brand-mascot:hover {
+  filter: drop-shadow(0 0 14px rgba(90, 255, 135, 0.58));
+}
+body.theme-cloudyplap .brand-mascot:focus-visible {
+  outline: 2px solid #9dffb5;
+  outline-offset: 5px;
+  border-radius: 45%;
+}
+body.theme-cloudyplap .brand-mascot[aria-pressed="true"] {
+  filter: drop-shadow(0 0 18px rgba(110, 255, 150, 0.76));
 }
 body.theme-cloudyplap .brand-mascot.acting {
   animation: mascot-pop 0.38s cubic-bezier(0.2, 1.4, 0.4, 1);
@@ -423,6 +449,46 @@ body.theme-cloudyplap .panel.sentinel-window {
 
 #theme-smoke-back,
 #theme-smoke-front {
+  display: none;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  mix-blend-mode: screen;
+}
+
+#theme-smoke-back { z-index: 1; opacity: 0.58; }
+#theme-smoke-front {
+  z-index: 4;
+  opacity: 0.34;
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 12%, #000 76%);
+  mask-image: radial-gradient(ellipse at center, transparent 12%, #000 76%);
+}
+
+body.theme-cloudyplap.smoke-on #theme-smoke-back,
+body.theme-cloudyplap.smoke-on #theme-smoke-front {
+  display: block;
+}
+
+#tina-mode-indicator {
+  position: fixed;
+  top: max(0.8rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  padding: 0.48rem 0.82rem;
+  border: 1px solid rgba(145, 255, 175, 0.9);
+  border-radius: 999px;
+  background: rgba(0, 12, 4, 0.9);
+  box-shadow: 0 0 20px rgba(50, 255, 105, 0.42);
+  color: #baffca;
+  font: 800 0.72rem/1 "Share Tech Mono", monospace;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+#tina-mode-indicator[hidden] {
   display: none !important;
 }
 
@@ -478,5 +544,12 @@ body.theme-cloudyplap .dock.sentinel-dock {
   #reel-smoke .smoke-vid,
   #reel-smoke canvas {
     display: none !important;
+  }
+
+  #reel-smoke .smoke-still,
+  #reel-smoke-back .smoke-still,
+  #theme-smoke-back .smoke-still,
+  #theme-smoke-front .smoke-still {
+    animation: none !important;
   }
 }
