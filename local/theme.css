@@ -1,4 +1,4 @@
-/* REDPILLINATOR 5000 — local-only. Do not upload to Netlify. */
+/* omens plapinator theme — local-only. */
 body.theme-cloudyplap {
   background: #000 !important;
   background-image: none !important;
@@ -465,12 +465,6 @@ body.theme-cloudyplap .dock.sentinel-dock {
   position: fixed;
   inset: auto 0 0;
   z-index: 60;
-}
-
-/* --------------------------------------------------------- LAN instructions */
-
-body.theme-cloudyplap .lan-steps {
-  border-left-color: rgba(80, 230, 120, 0.45);
 }
 
 @media (prefers-reduced-motion: reduce) {

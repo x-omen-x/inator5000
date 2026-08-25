@@ -1,6 +1,8 @@
 {
   "name": "omens plapinator",
   "short_name": "plapinator",
+  "description": "A private, offline-first photo and video reel player.",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -8,15 +10,22 @@
   "theme_color": "#39ff6a",
   "icons": [
     {
-      "src": "local/assets/app-icon.png",
-      "sizes": "any",
-      "type": "image/png"
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "local/assets/app-icon.png",
-      "sizes": "any",
+      "src": "icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

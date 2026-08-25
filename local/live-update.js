@@ -84,6 +84,11 @@
   async function apply(next) {
     busy = true;
     try {
+      if (next.reload) {
+        toast(next.note ? `updated · ${next.note}` : "updated · reloading");
+        window.setTimeout(() => location.reload(), 180);
+        return;
+      }
       // Stylesheets first so the incoming scripts land on the new rules.
       swapStyles(next.css || [], next.build);
 

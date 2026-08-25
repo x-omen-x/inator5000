@@ -15,13 +15,23 @@ function defaultAlbum() {
   return `Album ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
+const LEGACY_SETTINGS_KEYS = ["flashreel-online-settings-v3", "flashreel-online-settings-v2"];
+
+function withoutLanSettings(value) {
+  const settings = value && typeof value === "object" ? value : {};
+  const { lanShare, lanPass, lanReceive, ...clean } = settings;
+  return clean;
+}
+
 function readSettings() {
   try {
-    return JSON.parse(
-      localStorage.getItem(SETTINGS_KEY) ||
-        localStorage.getItem("flashreel-online-settings-v3") ||
-        localStorage.getItem("flashreel-online-settings-v2") ||
-        "{}",
+    return withoutLanSettings(
+      JSON.parse(
+        localStorage.getItem(SETTINGS_KEY) ||
+          localStorage.getItem("flashreel-online-settings-v3") ||
+          localStorage.getItem("flashreel-online-settings-v2") ||
+          "{}",
+      ),
     );
   } catch {
     return {};
@@ -29,13 +39,20 @@ function readSettings() {
 }
 function writeSettings(patch) {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...readSettings(), ...patch }));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(withoutLanSettings({ ...readSettings(), ...patch })));
+    LEGACY_SETTINGS_KEYS.forEach((key) => localStorage.removeItem(key));
   } catch {
     /* quota */
   }
 }
 
 const saved = readSettings();
+try {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved));
+  LEGACY_SETTINGS_KEYS.forEach((key) => localStorage.removeItem(key));
+} catch {
+  /* storage unavailable */
+}
 const state = {
   slides: [],
   speed: saved.speed || "fast",
@@ -69,7 +86,6 @@ const state = {
   skipVideos: saved.skipVideos ?? false,
   thumbPage: 0,
   thumbsPerPage: 24,
-  lanShare: saved.lanShare ?? false,
 };
 
 
@@ -127,6 +143,15 @@ function setStatus(text) {
 }
 function safeName(name) {
   return String(name || "file").replace(/[^\w.\-]+/g, "_").slice(0, 80);
+}
+
+function nextOrder(items) {
+  return (
+    items.reduce((max, item) => {
+      const order = Number(item.order);
+      return Number.isFinite(order) ? Math.max(max, order) : max;
+    }, -1) + 1
+  );
 }
 
 const DB_NAME = "flashreel-online";
@@ -263,6 +288,11 @@ function repeatSymbol() {
   return state.audioRepeat === "one" ? "🔂" : state.audioRepeat === "off" ? "⇥" : "🔁";
 }
 
+function repeatLabel(prefix = "Playlist") {
+  const mode = state.audioRepeat === "one" ? "one track" : state.audioRepeat === "off" ? "off" : "all tracks";
+  return `${prefix} repeat: ${mode}`;
+}
+
 function renderTracks() {
   $("track-list").innerHTML = state.tracks
     .map(
@@ -278,7 +308,10 @@ function renderSetup() {
   $("sound-flag").textContent =
     state.soundtrackMode === "off" ? "OFF" : state.soundtrackMode === "local" ? `${state.tracks.length} TRK` : "SC";
 
-  $("play-btn").disabled = state.slides.length === 0;
+  const hasSlides = state.slides.length > 0;
+  $("play-btn").disabled = !hasSlides;
+  $("record-btn").disabled = !hasSlides;
+  $("hud-record").disabled = !hasSlides;
   $("dock-copy").textContent = state.slides.length
     ? `${state.slides.length} item${state.slides.length === 1 ? "" : "s"} ready`
     : "Add photos or videos to start";
@@ -320,10 +353,15 @@ function renderSetup() {
 
   applyCrossfade();
 
-  $("audio-repeat-btn").textContent = repeatSymbol();
-  $("audio-repeat-btn").className = `btn sm icon-mark ${state.audioRepeat === "off" ? "outline" : ""}`;
+  const repeatButton = $("audio-repeat-btn");
+  repeatButton.textContent = repeatSymbol();
+  repeatButton.className = `btn sm icon-mark ${state.audioRepeat === "off" ? "outline" : ""}`;
+  repeatButton.setAttribute("aria-label", repeatLabel());
+  repeatButton.setAttribute("aria-pressed", String(state.audioRepeat !== "off"));
   $("audio-shuffle-btn").className = `btn sm icon-mark ${state.audioShuffle ? "" : "outline"}`;
+  $("audio-shuffle-btn").setAttribute("aria-pressed", String(state.audioShuffle));
   $("hud-photo-shuffle").classList.toggle("outline", !state.shuffle);
+  $("hud-photo-shuffle").setAttribute("aria-pressed", String(state.shuffle));
   const skipVid = $("skip-video-btn");
   if (skipVid) {
     const onVid = state.playing && state.slides[state.index]?.kind === "video";
@@ -331,28 +369,47 @@ function renderSetup() {
     skipVid.classList.toggle("outline", !onVid);
   }
   const noRepHud = $("hud-no-repeat");
-  if (noRepHud) noRepHud.classList.toggle("outline", !state.noRepeat);
+  if (noRepHud) {
+    noRepHud.classList.toggle("outline", !state.noRepeat);
+    noRepHud.setAttribute("aria-pressed", String(state.noRepeat));
+  }
   const hudAudioRepeat = $("hud-audio-repeat");
   if (hudAudioRepeat) {
     hudAudioRepeat.textContent = `♪${repeatSymbol()}`;
     hudAudioRepeat.classList.toggle("outline", state.audioRepeat === "off");
+    hudAudioRepeat.setAttribute("aria-label", repeatLabel("Soundtrack"));
+    hudAudioRepeat.setAttribute("aria-pressed", String(state.audioRepeat !== "off"));
   }
   const hudAudioShuffle = $("hud-audio-shuffle");
-  if (hudAudioShuffle) hudAudioShuffle.classList.toggle("outline", !state.audioShuffle);
+  if (hudAudioShuffle) {
+    hudAudioShuffle.classList.toggle("outline", !state.audioShuffle);
+    hudAudioShuffle.setAttribute("aria-pressed", String(state.audioShuffle));
+  }
 
   $("fit-contain").className = `btn sm ${state.fit === "contain" ? "" : "outline"}`;
+  $("fit-contain").setAttribute("aria-pressed", String(state.fit === "contain"));
   $("fit-cover").className = `btn sm ${state.fit === "cover" ? "" : "outline"}`;
+  $("fit-cover").setAttribute("aria-pressed", String(state.fit === "cover"));
   if ($("slow-pan")) $("slow-pan").checked = !!state.slowPan;
-  if ($("hud-slow-pan")) $("hud-slow-pan").classList.toggle("outline", !state.slowPan);
+  if ($("hud-slow-pan")) {
+    $("hud-slow-pan").classList.toggle("outline", !state.slowPan);
+    $("hud-slow-pan").setAttribute("aria-pressed", String(state.slowPan));
+  }
 
   document.querySelectorAll("#audio-speed-presets [data-aspeed]").forEach((btn) => {
-    btn.className = `btn sm ${Math.abs(Number(btn.dataset.aspeed) - Number(state.audioSpeed)) < 0.01 ? "" : "outline"}`;
+    const selected = Math.abs(Number(btn.dataset.aspeed) - Number(state.audioSpeed)) < 0.01;
+    btn.className = `btn sm ${selected ? "" : "outline"}`;
+    btn.setAttribute("aria-pressed", String(selected));
   });
   document.querySelectorAll("#blends [data-blend]").forEach((btn) => {
-    btn.className = `btn sm ${btn.dataset.blend === state.blend ? "" : "outline"}`;
+    const selected = btn.dataset.blend === state.blend;
+    btn.className = `btn sm ${selected ? "" : "outline"}`;
+    btn.setAttribute("aria-pressed", String(selected));
   });
   document.querySelectorAll("#paces .pace").forEach((btn) => {
-    btn.classList.toggle("on", btn.dataset.speed === state.speed);
+    const selected = btn.dataset.speed === state.speed;
+    btn.classList.toggle("on", selected);
+    btn.setAttribute("aria-pressed", String(selected));
   });
 
   renderAlbums();
@@ -456,9 +513,19 @@ async function importFiles(files, namedAlbum) {
     const album = albumFrom(file, namedAlbum || defaultAlbum());
     const kind = isVideo(file) ? "video" : "image";
     const url = URL.createObjectURL(file);
-    const row = { id, name: file.name, type: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"), blob: file, album, kind };
+    const order = nextOrder(state.slides);
+    const row = {
+      id,
+      name: file.name,
+      type: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
+      blob: file,
+      album,
+      kind,
+      order,
+      createdAt: Date.now(),
+    };
     pending.push(row);
-    state.slides.push({ id, url, album, alt: file.name, kind, file });
+    state.slides.push({ id, url, album, alt: file.name, kind, file, order });
     if (i === 0 || (i + 1) % 24 === 0 || i === media.length - 1) {
       setStatus(`Adding ${i + 1} / ${total}…`);
       renderSetup();
@@ -470,7 +537,6 @@ async function importFiles(files, namedAlbum) {
   renderSetup();
   prefetchAround(state.index);
   setStatus(`Added ${total} item${total === 1 ? "" : "s"} · saving in this browser…`);
-  globalThis.lanShare?.announce();
   try {
     for (let i = 0; i < pending.length; i += 20) {
       await idbPut(PHOTO_STORE, pending.slice(i, i + 20));
@@ -497,7 +563,6 @@ async function importOverlay(file) {
   state.overlayName = file.name;
   state.overlayFile = file;
   setStatus(`Overlay locked · ${file.name}`);
-  globalThis.lanShare?.announce();
   renderSetup();
 }
 
@@ -507,21 +572,39 @@ async function importAudioFiles(fileList) {
     setStatus("That file is not audio.");
     return;
   }
+  let storageFailures = 0;
   for (const file of files) {
     const id = crypto.randomUUID();
+    const storageId = `local-audio-${id}`;
+    const order = nextOrder(state.tracks);
     const url = URL.createObjectURL(file);
-    state.tracks.push({ id, url, name: file.name, file });
+    state.tracks.push({ id, storageId, url, name: file.name, file, order });
     try {
-      await idbPut(MEDIA_STORE, [{ id: `local-audio-${id}`, name: file.name, type: file.type, blob: file }]);
+      await idbPut(MEDIA_STORE, [
+        {
+          id: storageId,
+          trackId: id,
+          name: file.name,
+          type: file.type,
+          blob: file,
+          order,
+          createdAt: Date.now(),
+        },
+      ]);
     } catch {
-      /* storage full */
+      storageFailures += 1;
     }
   }
   if (state.tracks.length > 1) state.audioRepeat = "all";
   state.soundtrackMode = "local";
   writeSettings({ soundtrackMode: "local", audioRepeat: state.audioRepeat });
-  setStatus(`${state.tracks.length} local track${state.tracks.length === 1 ? "" : "s"} · repeat ${state.audioRepeat}`);
-  globalThis.lanShare?.announce();
+  if (storageFailures) {
+    setStatus(
+      `Added ${files.length} track${files.length === 1 ? "" : "s"}, but ${storageFailures} could not be saved for reload. Free browser storage and try again.`,
+    );
+  } else {
+    setStatus(`${state.tracks.length} local track${state.tracks.length === 1 ? "" : "s"} · saved in this browser`);
+  }
   renderSetup();
 }
 
@@ -567,6 +650,15 @@ function togglePhotoShuffle() {
   writeSettings({ shuffle: state.shuffle });
   if ($("shuffle")) $("shuffle").checked = state.shuffle;
   resetShuffleBag();
+  renderSetup();
+  bumpChrome();
+}
+
+function setSlowPan(on) {
+  state.slowPan = Boolean(on);
+  writeSettings({ slowPan: state.slowPan });
+  applyFit(visibleStill());
+  applyFit($("slide-vid"));
   renderSetup();
   bumpChrome();
 }
@@ -1044,6 +1136,8 @@ function enterPlayer() {
   $("setup").classList.add("hid");
   $("player").classList.add("on");
   $("toggle-btn").textContent = "❚❚";
+  $("toggle-btn").setAttribute("aria-label", "Pause");
+  $("toggle-btn").setAttribute("aria-pressed", "true");
   ensureAudioGraph();
   showSlide();
   syncMedia();
@@ -1071,6 +1165,8 @@ function exitPlayer() {
 function togglePlay() {
   state.playing = !state.playing;
   $("toggle-btn").textContent = state.playing ? "❚❚" : "▶";
+  $("toggle-btn").setAttribute("aria-label", state.playing ? "Pause" : "Play");
+  $("toggle-btn").setAttribute("aria-pressed", String(state.playing));
   if (state.playing) ensureAudioGraph();
   syncMedia();
   if (state.playing) {
@@ -1163,7 +1259,7 @@ async function openPip() {
   } catch {
     /* fallback */
   }
-  pipWindow = window.open("", "gooninator-pip", "popup=yes,width=480,height=300,resizable=yes");
+  pipWindow = window.open("", "omens-plapinator-pip", "popup=yes,width=480,height=300,resizable=yes");
   if (!pipWindow) {
     stopPipRenderer();
     setStatus("Picture in Picture was blocked.");
@@ -1225,6 +1321,7 @@ function ensureRecTap() {
   return recDest;
 }
 let mediaRecorder = null;
+let recStream = null;
 let recChunks = [];
 const hooked = new WeakSet();
 
@@ -1291,8 +1388,36 @@ function pickRecorderMime() {
 function setRecUi(on) {
   state.recording = on;
   $("rec-dot").classList.toggle("hid", !on);
-  $("record-btn").classList.toggle("live", on);
-  $("hud-record").classList.toggle("live", on);
+  for (const button of [$("record-btn"), $("hud-record")]) {
+    button.classList.toggle("live", on);
+    button.setAttribute("aria-pressed", String(on));
+    button.setAttribute("aria-label", on ? "Stop recording" : "Record reel");
+    button.title = on ? "Stop recording" : "Record slideshow";
+  }
+}
+
+function waitForCurrentVisual(timeout = 2500) {
+  const source = currentVisual();
+  const ready =
+    source &&
+    ((source.tagName === "VIDEO" && source.readyState >= 2) ||
+      (source.tagName !== "VIDEO" && source.complete && source.naturalWidth));
+  if (ready) return Promise.resolve();
+  return new Promise((resolve) => {
+    if (!source) {
+      resolve();
+      return;
+    }
+    const eventName = source.tagName === "VIDEO" ? "loadeddata" : "load";
+    const done = () => {
+      source.removeEventListener(eventName, done);
+      source.removeEventListener("error", done);
+      resolve();
+    };
+    source.addEventListener(eventName, done, { once: true });
+    source.addEventListener("error", done, { once: true });
+    setTimeout(done, timeout);
+  });
 }
 
 async function startRecording() {
@@ -1300,52 +1425,94 @@ async function startRecording() {
     stopRecording();
     return;
   }
+  if (!state.slides.length) {
+    setStatus("Add at least one photo or video before recording.");
+    return;
+  }
+  if (!window.MediaRecorder) {
+    setStatus("This browser does not support reel recording.");
+    return;
+  }
+  if (!state.playing) enterPlayer();
+  await waitForCurrentVisual();
   ensureAudioGraph();
-  audioCtx?.resume?.();
+  await audioCtx?.resume?.().catch(() => undefined);
   startPipRenderer();
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const canvas = $("pip-canvas");
   if (!canvas.captureStream) {
+    stopPipRenderer();
     setStatus("This browser cannot record the player canvas.");
     return;
   }
   const vStream = canvas.captureStream(30);
   const mixed = new MediaStream();
-  vStream.getVideoTracks().forEach((t) => mixed.addTrack(t));
-  ensureRecTap()?.stream.getAudioTracks().forEach((t) => mixed.addTrack(t));
+  vStream.getVideoTracks().forEach((track) => mixed.addTrack(track));
+  ensureRecTap()?.stream.getAudioTracks().forEach((track) => mixed.addTrack(track));
+  recStream = mixed;
   const mime = pickRecorderMime();
   try {
     recChunks = [];
     mediaRecorder = new MediaRecorder(mixed, mime ? { mimeType: mime, videoBitsPerSecond: 4_000_000 } : undefined);
   } catch (err) {
+    recStream.getTracks().forEach((track) => track.stop());
+    recStream = null;
+    stopPipRenderer();
     setStatus("Recorder failed: " + (err.message || err));
     return;
   }
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data && e.data.size) recChunks.push(e.data);
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data && event.data.size) recChunks.push(event.data);
+  };
+  mediaRecorder.onerror = (event) => {
+    setStatus("Recording stopped because the browser reported an error.");
+    console.error("Recorder error:", event.error || event);
   };
   mediaRecorder.onstop = () => {
     const blob = new Blob(recChunks, { type: mediaRecorder.mimeType || "video/webm" });
-    const ext = blob.type.includes("mp4") ? "mp4" : "webm";
-    downloadBlob(blob, `reel-${Date.now()}.${ext}`);
-    setStatus("Reel saved to your downloads / Files.");
+    if (blob.size) {
+      const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+      downloadBlob(blob, `reel-${Date.now()}.${ext}`);
+      setStatus("Reel saved to your downloads / Files.");
+    } else {
+      setStatus("No video data was captured. Try recording again.");
+    }
     recChunks = [];
+    recStream?.getTracks().forEach((track) => track.stop());
+    recStream = null;
     setRecUi(false);
     stopPipRenderer();
+    mediaRecorder = null;
   };
-  mediaRecorder.start(500);
-  setRecUi(true);
-  if (!state.playing) enterPlayer();
-  setStatus("Recording this window only — nothing leaves the device.");
+  try {
+    mediaRecorder.start(500);
+    setRecUi(true);
+    setStatus("Recording this window only — nothing leaves the device.");
+  } catch (err) {
+    recStream.getTracks().forEach((track) => track.stop());
+    recStream = null;
+    stopPipRenderer();
+    setStatus("Recorder could not start: " + (err.message || err));
+  }
 }
 
 function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
     try {
       mediaRecorder.stop();
-    } catch {
+    } catch (err) {
+      recStream?.getTracks().forEach((track) => track.stop());
+      recStream = null;
       setRecUi(false);
+      stopPipRenderer();
+      setStatus("Recording could not be finalized: " + (err.message || err));
     }
-  } else setRecUi(false);
+  } else {
+    recStream?.getTracks().forEach((track) => track.stop());
+    recStream = null;
+    setRecUi(false);
+    stopPipRenderer();
+  }
 }
 
 function downloadBlob(blob, name) {
@@ -1369,32 +1536,45 @@ async function zipSlides(slides, zipName) {
     setStatus("Zip engine missing.");
     return;
   }
-  const images = slides.filter((s) => s.kind !== "video");
-  if (!images.length) {
-    setStatus("No still images to zip.");
+  if (!slides.length) {
+    setStatus("There is no media in that selection to zip.");
     return;
   }
-  setStatus(`Packing ${images.length} images…`);
+  setStatus(`Packing ${slides.length} media item${slides.length === 1 ? "" : "s"}…`);
   const zip = new JSZip();
   const folder = zip.folder(zipName) || zip;
-  let i = 0;
-  for (const s of images) {
+  let packed = 0;
+  let skipped = 0;
+  for (const slide of slides) {
     try {
-      const blob = await blobForSlide(s);
-      folder.file(`${String(++i).padStart(3, "0")}-${safeName(s.alt || "image")}`, blob);
-    } catch {
-      /* skip one */
+      const blob = await blobForSlide(slide);
+      packed += 1;
+      folder.file(
+        `${String(packed).padStart(3, "0")}-${safeName(slide.alt || (slide.kind === "video" ? "video" : "image"))}`,
+        blob,
+      );
+    } catch (err) {
+      skipped += 1;
+      console.error("Could not add media to zip:", slide.alt, err);
     }
+  }
+  if (!packed) {
+    setStatus("None of the selected media could be read, so no zip was created.");
+    return;
   }
   const out = await zip.generateAsync({ type: "blob", compression: "STORE" });
   downloadBlob(out, `${safeName(zipName)}.zip`);
-  setStatus(`Saved ${zipName}.zip`);
+  setStatus(
+    skipped
+      ? `Saved ${zipName}.zip with ${packed} item${packed === 1 ? "" : "s"}; ${skipped} unreadable item${skipped === 1 ? " was" : "s were"} skipped.`
+      : `Saved ${zipName}.zip with ${packed} media item${packed === 1 ? "" : "s"}.`,
+  );
 }
 
 $("paces").innerHTML = Object.entries(PACES)
   .map(
     ([id, pace]) =>
-      `<button type="button" class="pace${id === state.speed ? " on" : ""}" data-speed="${id}"><strong>${pace.label}</strong><em>${pace.hint}</em></button>`,
+      `<button type="button" class="pace${id === state.speed ? " on" : ""}" data-speed="${id}" aria-pressed="${id === state.speed}"><strong>${pace.label}</strong><em>${pace.hint}</em></button>`,
   )
   .join("");
 
@@ -1430,10 +1610,7 @@ $("audio-input").onchange = (e) => {
   e.target.value = "";
 };
 
-$("add-folder").onclick = (e) => {
-  /* label[for=folder-input] already opens the picker; don't intercept */
-  if (e.currentTarget && e.currentTarget.tagName === "LABEL") return;
-};
+$("add-folder").onclick = () => $("folder-input").click();
 
 function bindDrop(el, onFiles) {
   el.ondragover = (e) => {
@@ -1486,7 +1663,7 @@ $("clear-sound").onclick = async () => {
       media.filter((r) => String(r.id).startsWith("local-audio")).map((r) => r.id),
     );
   } catch {
-    /* empty */
+    setStatus("The audio list was cleared for this session, but browser storage could not be updated. Some tracks may return after reload.");
   }
   renderSetup();
 };
@@ -1504,6 +1681,7 @@ $("audio-shuffle-btn").onclick = toggleAudioShuffle;
 $("hud-audio-repeat").onclick = cycleAudioRepeat;
 $("hud-audio-shuffle").onclick = toggleAudioShuffle;
 $("hud-photo-shuffle").onclick = togglePhotoShuffle;
+$("hud-slow-pan").onclick = () => setSlowPan(!state.slowPan);
 $("hud-no-repeat").onclick = () => {
   state.noRepeat = !state.noRepeat;
   writeSettings({ noRepeat: state.noRepeat });
@@ -1573,6 +1751,7 @@ $("no-repeat").onchange = (e) => {
   resetShuffleBag();
   renderSetup();
 };
+$("slow-pan").onchange = (event) => setSlowPan(event.target.checked);
 if ($("skip-videos")) {
   $("skip-videos").checked = !!state.skipVideos;
   $("skip-videos").onchange = (e) => {
@@ -1646,17 +1825,26 @@ $("thumbs").onclick = async (e) => {
   await idbDel(PHOTO_STORE, [id]);
   renderSetup();
 };
-$("track-list").onclick = (e) => {
+$("track-list").onclick = async (e) => {
   const btn = e.target.closest("[data-remove-track]");
   if (!btn) return;
   const id = btn.dataset.removeTrack;
-  const t = state.tracks.find((x) => x.id === id);
-  if (t) URL.revokeObjectURL(t.url);
-  state.tracks = state.tracks.filter((x) => x.id !== id);
+  const track = state.tracks.find((item) => item.id === id);
+  if (!track) return;
+  try {
+    await idbDel(MEDIA_STORE, [track.storageId || `local-audio-${track.id}`]);
+  } catch {
+    setStatus("That track could not be removed from browser storage. It is still listed so it will not unexpectedly return after reload.");
+    return;
+  }
+  URL.revokeObjectURL(track.url);
+  state.tracks = state.tracks.filter((item) => item.id !== id);
   if (state.trackIndex >= state.tracks.length) state.trackIndex = 0;
   if (!state.tracks.length && state.soundtrackMode === "local") {
     state.soundtrackMode = state.soundcloudUrl ? "soundcloud" : "off";
   }
+  writeSettings({ soundtrackMode: state.soundtrackMode });
+  setStatus(`Removed ${track.name} from this device.`);
   renderSetup();
 };
 $("clear-all").onclick = async () => {
@@ -1705,10 +1893,28 @@ $("slide-video-volume").oninput = (event) => {
   bumpChrome();
 };
 $("pip-btn").onclick = openPip;
-$("full-btn").onclick = () => {
-  if (document.fullscreenElement) document.exitFullscreen();
-  else document.documentElement.requestFullscreen?.();
-};
+
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (!exit) throw new Error("Fullscreen exit is unavailable.");
+      await exit.call(document);
+      return;
+    }
+    const target = document.documentElement;
+    const request = target.requestFullscreen || target.webkitRequestFullscreen;
+    if (!request) {
+      setStatus("Fullscreen is not supported by this browser. You can still install the app for a full-screen experience.");
+      return;
+    }
+    await request.call(target);
+  } catch (err) {
+    setStatus("Fullscreen could not be opened: " + (err.message || err));
+  }
+}
+
+$("full-btn").onclick = toggleFullscreen;
 $("player").onpointerdown = bumpChrome;
 let chromeMoveFrame = 0;
 $("player").onpointermove = () => {
@@ -1732,7 +1938,7 @@ window.addEventListener("keydown", (event) => {
     bumpChrome();
   } else if (event.key === "Escape") exitPlayer();
   else if (event.key === "p") openPip();
-  else if (event.key === "f") document.documentElement.requestFullscreen?.();
+  else if (event.key === "f") toggleFullscreen();
   else if (event.key === "r") startRecording();
   else if (event.key === "c" || event.key === "C") {
     event.preventDefault();
@@ -1741,33 +1947,84 @@ window.addEventListener("keydown", (event) => {
 });
 
 let deferredPrompt = null;
-const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+let installReturnFocus = null;
 const standalone = window.matchMedia("(display-mode: standalone)").matches || Boolean(navigator.standalone);
 if (standalone) $("install-btn").classList.add("hid");
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredPrompt = event;
 });
+
+function installFocusables() {
+  return [...$("install-sheet").querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(
+    (element) => !element.disabled && !element.hidden,
+  );
+}
+
+function openInstallSheet() {
+  installReturnFocus = document.activeElement;
+  $("install-sheet").classList.remove("hid");
+  $("install-sheet").setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => $("sheet-close").focus());
+}
+
+function closeInstallSheet() {
+  $("install-sheet").classList.add("hid");
+  $("install-sheet").setAttribute("aria-hidden", "true");
+  installReturnFocus?.focus?.();
+  installReturnFocus = null;
+}
+
 $("install-btn").onclick = async () => {
   if (deferredPrompt) {
-    try {
-      await deferredPrompt.prompt();
-    } catch {
-      /* they can still follow the steps */
-    }
+    const prompt = deferredPrompt;
     deferredPrompt = null;
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      if (choice?.outcome === "accepted") {
+        setStatus("Install accepted. The app will appear with your other installed apps.");
+        return;
+      }
+    } catch {
+      /* manual steps remain available */
+    }
   }
-  const title = document.querySelector("#install-sheet h2");
-  if (title) title.textContent = "Install the app";
   $("install-steps").innerHTML = `
-    <li><strong>iPhone / iPad</strong>Gotta use Safari for this. Tap the share button (square with the arrow). Scroll a bit and tap Add to Home Screen, then Add.</li>
-    <li><strong>Android</strong>Tap the three dots up in the corner. Hit Add to Home screen or Install app and confirm.</li>
-    <li><strong>Mac</strong>Chrome or Edge: look on the right side of the address bar for a little install icon and click it. Safari doesn’t really do app installs — Chrome’s the easy one here.</li>
-    <li><strong>Windows PC</strong>Chrome or Edge again. Same install icon in the address bar, or open the menu and click Install Gooninator Reloaded.</li>
+    <li><strong>iPhone / iPad</strong>Open this page in Safari. Tap Share, choose Add to Home Screen, then tap Add.</li>
+    <li><strong>Android</strong>Open the browser menu, choose Add to Home screen or Install app, and confirm.</li>
+    <li><strong>Mac</strong>In Chrome or Edge, use the install icon in the address bar. In Safari, choose File → Add to Dock when available.</li>
+    <li><strong>Windows PC</strong>In Chrome or Edge, use the install icon in the address bar or choose Install omens plapinator from the browser menu.</li>
   `;
-  $("install-sheet").classList.remove("hid");
+  openInstallSheet();
 };
-$("sheet-close").onclick = $("sheet-ok").onclick = () => $("install-sheet").classList.add("hid");
+$("sheet-close").onclick = $("sheet-ok").onclick = closeInstallSheet;
+$("install-sheet").onclick = (event) => {
+  if (event.target === $("install-sheet")) closeInstallSheet();
+};
+$("install-sheet").addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeInstallSheet();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = installFocusables();
+  if (!focusable.length) {
+    event.preventDefault();
+    document.querySelector("#install-sheet [role=dialog]")?.focus();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 
 (function themePreviewGate() {
   const link = $("theme-preview-link");
@@ -1794,16 +2051,16 @@ $("sheet-close").onclick = $("sheet-ok").onclick = () => $("install-sheet").clas
   const bar = document.createElement("div");
   bar.id = "update-dl";
   bar.innerHTML = `
-    <p>The files are here. Tap one — it should download.</p>
-    <a class="btn" href="gooninator-update.zip" download="gooninator-update.zip">Public update (Netlify)</a>
-    <a class="btn" href="omens-plapinator-local.zip" download="omens-plapinator-local.zip">Theme update (Mac / iOS, local only)</a>
+    <p>Download the latest omens plapinator build.</p>
+    <a class="btn" href="omens-plapinator-update.zip" download="omens-plapinator-update.zip">Public build (Netlify)</a>
+    <a class="btn" href="omens-plapinator-local.zip" download="omens-plapinator-local.zip">Theme build (Mac / iOS, local only)</a>
     <button type="button" class="link" id="update-dl-x">hide this</button>`;
   document.body.appendChild(bar);
   document.getElementById("update-dl-x").onclick = () => bar.remove();
 })();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=22").then((reg) => {
+  navigator.serviceWorker.register("sw.js?v=24").then((reg) => {
     reg.update();
   }).catch(() => undefined);
 }
@@ -1842,15 +2099,21 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("resize", resize);
   let rainFrame = 0;
   let lastRainDraw = 0;
+  const rainIsVisible = () => {
+    const style = getComputedStyle(canvas);
+    return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) > 0;
+  };
   const scheduleRain = () => {
-    if (!rainFrame && !rainPaused && !document.hidden) rainFrame = requestAnimationFrame(draw);
+    if (!rainFrame && !rainPaused && !document.hidden && rainIsVisible()) {
+      rainFrame = requestAnimationFrame(draw);
+    }
   };
   document.addEventListener("visibilitychange", scheduleRain);
   resize();
 
   function draw(timestamp) {
     rainFrame = 0;
-    if (rainPaused || document.hidden) return;
+    if (rainPaused || document.hidden || !rainIsVisible()) return;
     if (timestamp - lastRainDraw < (lean ? 48 : 32)) {
       scheduleRain();
       return;
@@ -1937,10 +2200,20 @@ if ("serviceWorker" in navigator) {
 })();
 
 (async function restore() {
+  let migrationFailed = false;
   try {
     const photos = await idbAll(PHOTO_STORE);
-    for (const row of photos) {
+    const orderedPhotos = photos
+      .map((row, index) => ({
+        row,
+        order: Number.isFinite(Number(row.order)) ? Number(row.order) : index,
+      }))
+      .sort((a, b) => a.order - b.order);
+    const photoMigrations = [];
+    for (const item of orderedPhotos) {
+      const { row, order } = item;
       if (!row.blob) continue;
+      if (!Number.isFinite(Number(row.order))) photoMigrations.push({ ...row, order });
       state.slides.push({
         id: row.id,
         url: URL.createObjectURL(row.blob),
@@ -1948,27 +2221,63 @@ if ("serviceWorker" in navigator) {
         alt: row.name,
         kind: row.kind === "video" ? "video" : "image",
         file: row.blob,
+        order,
       });
     }
-    const media = await idbAll(MEDIA_STORE);
-    for (const row of media) {
-      if (row.id === "overlay-video" && row.blob) {
-        state.overlayUrl = URL.createObjectURL(row.blob);
-        state.overlayName = row.name;
-        state.overlayFile = row.blob;
+    if (photoMigrations.length) {
+      try {
+        await idbPut(PHOTO_STORE, photoMigrations);
+      } catch {
+        migrationFailed = true;
       }
-      if (String(row.id).startsWith("local-audio") && row.blob) {
-        state.tracks.push({
-          id: row.id,
-          url: URL.createObjectURL(row.blob),
-          name: row.name,
-          file: row.blob,
-        });
+    }
+
+    const media = await idbAll(MEDIA_STORE);
+    const overlay = media.find((row) => row.id === "overlay-video" && row.blob);
+    if (overlay) {
+      state.overlayUrl = URL.createObjectURL(overlay.blob);
+      state.overlayName = overlay.name;
+      state.overlayFile = overlay.blob;
+    }
+
+    const orderedTracks = media
+      .filter((row) => String(row.id).startsWith("local-audio") && row.blob)
+      .map((row, index) => ({
+        row,
+        order: Number.isFinite(Number(row.order)) ? Number(row.order) : index,
+      }))
+      .sort((a, b) => a.order - b.order);
+    const trackMigrations = [];
+    for (const item of orderedTracks) {
+      const { row, order } = item;
+      const storageId = String(row.id);
+      const id = row.trackId || storageId.replace(/^local-audio-?/, "");
+      state.tracks.push({
+        id,
+        storageId,
+        url: URL.createObjectURL(row.blob),
+        name: row.name,
+        file: row.blob,
+        order,
+      });
+      if (!row.trackId || !Number.isFinite(Number(row.order))) {
+        trackMigrations.push({ ...row, trackId: id, order });
+      }
+    }
+    if (trackMigrations.length) {
+      try {
+        await idbPut(MEDIA_STORE, trackMigrations);
+      } catch {
+        migrationFailed = true;
       }
     }
     if (state.tracks.length && state.soundtrackMode === "off") state.soundtrackMode = "local";
+    if (migrationFailed) {
+      setStatus("Media loaded, but its saved order could not be upgraded. Browser storage may be full.");
+    }
   } catch (err) {
     console.error("Storage restore error:", err);
+    setStatus("Some saved media could not be restored from browser storage.");
   }
   renderSetup();
 })();

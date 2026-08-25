@@ -112,7 +112,7 @@
     document.body.classList.remove("theme-cloudyplap", "smoke-on");
     if (brand) {
       brand.hidden = false;
-      brand.textContent = "GOONINATOR RELOADED";
+      brand.textContent = "OMENS PLAPINATOR";
     }
     if (sub) {
       sub.hidden = true;
@@ -150,6 +150,10 @@
   apple.href = BASE + "assets/app-icon.png";
   const og = document.querySelector('meta[property="og:image"]');
   if (og) og.setAttribute("content", BASE + "assets/share-card.jpg");
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute("content", TITLE);
+  const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+  if (twitterTitle) twitterTitle.setAttribute("content", TITLE);
   const appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
   if (appTitle) appTitle.setAttribute("content", TITLE);
 

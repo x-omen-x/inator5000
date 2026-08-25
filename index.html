@@ -5,20 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>omens plapinator</title>
     <meta property="og:type" content="website" />
+    <meta name="description" content="A private, offline-first photo and video reel player." />
     <meta property="og:title" content="omens plapinator" />
+    <meta property="og:description" content="A private, offline-first photo and video reel player." />
     <meta property="og:image" content="local/assets/share-card.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="omens plapinator" />
+    <meta name="twitter:description" content="A private, offline-first photo and video reel player." />
     <meta name="theme-color" content="#010802" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="omens plapinator" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" type="image/png" href="local/assets/app-icon.png" />
-    <link rel="apple-touch-icon" href="local/assets/app-icon.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="fonts.css" />
-    <link rel="stylesheet" href="styles.css?v=14" />
-    <link rel="stylesheet" href="local/five-thousand.css?v=1" />
+    <link rel="stylesheet" href="styles.css?v=15" />
+    <link rel="stylesheet" href="local/five-thousand.css?v=2" />
     <style>
       .slider input[type="range"] {
         color-scheme: light !important;
@@ -44,15 +48,15 @@
     <div id="intro-glitch" class="intro-glitch" aria-live="polite">
       <div class="glitch-backdrop"></div>
       <div class="glitch-content">
-        <div class="glitch-text-wrap" data-text="GOONINATOR RELOADED">
-          <h1 class="glitch-title">GOONINATOR RELOADED</h1>
+        <div class="glitch-text-wrap" data-text="OMENS PLAPINATOR">
+          <h1 class="glitch-title">OMENS PLAPINATOR</h1>
         </div>
       </div>
     </div>
 
     <div id="setup">
       <div class="topbar">
-        <div class="node-label" id="node-label">GOONINATOR RELOADED</div>
+        <div class="node-label" id="node-label">OMENS PLAPINATOR</div>
         <div class="topbar-actions">
           <a class="link" id="theme-preview-link" href="?theme=1">Theme</a>
           <a class="link" id="public-preview-link" href="?theme=0" hidden>Public</a>
@@ -60,10 +64,10 @@
         </div>
       </div>
 
-      <div class="wrap">
+      <main id="main-content" class="wrap">
         <header class="sentinel-main-header">
-          <h1 class="title-brand" id="brand-title" data-text="GOONINATOR RELOADED">GOONINATOR RELOADED</h1>
-          <p class="brand-sub" id="brand-sub" hidden></p>
+          <h1 class="title-brand" id="brand-title" data-text="OMENS PLAPINATOR">OMENS PLAPINATOR</h1>
+          <h1 class="brand-sub" id="brand-sub" hidden></h1>
         </header>
 
         <section class="panel sentinel-window">
@@ -80,60 +84,22 @@
             </div>
             <span class="count" id="photo-count">0</span>
           </div>
-          <input id="album-input" class="sr-only" type="file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" multiple />
-          <input id="loose-input" class="sr-only" type="file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" multiple />
-          <input id="folder-input" class="sr-only" type="file" multiple webkitdirectory directory />
+          <input id="album-input" class="sr-only" type="file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" multiple tabindex="-1" aria-hidden="true" />
+          <input id="loose-input" class="sr-only" type="file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" multiple tabindex="-1" aria-hidden="true" />
+          <input id="folder-input" class="sr-only" type="file" multiple webkitdirectory directory tabindex="-1" aria-hidden="true" />
           <label class="block">Album Name<input id="album-name" class="field bio-field" placeholder="My Album" /></label>
           <div class="row">
             <button type="button" class="btn hide-ios" id="choose-album">Choose Album</button>
-            <label class="btn outline" id="add-folder" for="folder-input">Add Folder</label>
+            <button type="button" class="btn outline" id="add-folder">Add Folder</button>
             <button type="button" class="btn ghost" id="loose-photos">Add Files</button>
           </div>
           <div class="drop" id="photo-drop">Drop images, videos, or a folder here (all subfolders included)</div>
           <ul class="albums" id="album-list"></ul>
           <div class="row">
-            <button type="button" class="btn sm outline" id="zip-all" title="Download all images as one zip">⬇ zip all</button>
+            <button type="button" class="btn sm outline" id="zip-all" title="Download all media as one zip">⬇ zip all</button>
             <button type="button" class="btn sm ghost" id="zip-albums" title="Download each album as its own zip">⬇ zip albums</button>
           </div>
 
-          <div class="lan-bar">
-            <button type="button" class="btn sm outline" id="lan-share-btn" aria-pressed="false">⇄ LAN Share</button>
-            <span class="lan-state" id="lan-state">off</span>
-            <button type="button" class="btn sm ghost" id="lan-opts-btn">Options</button>
-            <button type="button" class="btn sm outline" id="lan-look-btn" hidden>Look again</button>
-          </div>
-          <p class="lan-note" id="lan-note">Share your photos, videos and music with another device on the same Wi-Fi.</p>
-
-          <div class="lan-panel hid" id="lan-panel">
-            <ol class="lan-steps" id="lan-steps">
-              <li>Open this page on the other device, on the same Wi-Fi.</li>
-              <li>Tap LAN Share on both devices.</li>
-              <li>Wait for the green “on” label. Everything you add now shows up on both.</li>
-            </ol>
-            <label class="block">Password <small>optional · type the same word on both devices</small>
-              <input id="lan-pass" class="field bio-field" type="text" autocomplete="off" spellcheck="false" placeholder="leave empty to pair automatically" />
-            </label>
-            <label class="block">Files sent to you
-              <select id="lan-receive-mode" class="field bio-field">
-                <option value="mirror">Show them only — nothing is kept</option>
-                <option value="save">Keep them on this device</option>
-              </select>
-            </label>
-            <details class="lan-offline">
-              <summary>No Wi-Fi? Pair the two devices by hand</summary>
-              <ol class="lan-steps" id="lan-offline-steps">
-                <li>On this device, tap Make invite and copy the code that appears.</li>
-                <li>Paste it in the box on the other device and tap Use / answer code.</li>
-                <li>Copy the reply it gives you, paste it back in the box here, and tap Use / answer code.</li>
-              </ol>
-              <div class="row">
-                <button type="button" class="btn sm outline" id="lan-make-invite">Make invite</button>
-                <button type="button" class="btn sm outline" id="lan-use-code">Use / answer code</button>
-              </div>
-              <textarea id="lan-code" class="field bio-field lan-code" rows="3" spellcheck="false" placeholder="paste the code here"></textarea>
-              <p class="lan-hint" id="lan-code-out"></p>
-            </details>
-          </div>
         </section>
 
         <section class="panel sentinel-window">
@@ -150,7 +116,7 @@
             </div>
             <span class="count" id="overlay-flag">OFF</span>
           </div>
-          <input id="video-input" class="sr-only" type="file" accept="video/*" />
+          <input id="video-input" class="sr-only" type="file" accept="video/*" tabindex="-1" aria-hidden="true" />
           <div class="row">
             <button type="button" class="btn" id="choose-video">Choose Video</button>
             <button type="button" class="btn ghost hid" id="clear-video">Remove Video</button>
@@ -164,11 +130,11 @@
           <label class="slider">Video Volume <span><b id="ov-val">40</b>%</span><input id="overlay-vol" type="range" min="0" max="100" value="40" /></label>
           <label class="check"><input id="overlay-loop" type="checkbox" checked /> Loop Video</label>
           <div class="row" id="blends">
-            <button type="button" class="btn sm" data-blend="normal">Normal</button>
-            <button type="button" class="btn sm outline" data-blend="screen">Screen</button>
-            <button type="button" class="btn sm outline" data-blend="lighten">Lighten</button>
-            <button type="button" class="btn sm outline" data-blend="overlay">Overlay</button>
-            <button type="button" class="btn sm outline" data-blend="plus-lighter">Add</button>
+            <button type="button" class="btn sm" data-blend="normal" aria-pressed="false">Normal</button>
+            <button type="button" class="btn sm outline" data-blend="screen" aria-pressed="true">Screen</button>
+            <button type="button" class="btn sm outline" data-blend="lighten" aria-pressed="false">Lighten</button>
+            <button type="button" class="btn sm outline" data-blend="overlay" aria-pressed="false">Overlay</button>
+            <button type="button" class="btn sm outline" data-blend="plus-lighter" aria-pressed="false">Add</button>
           </div>
         </section>
 
@@ -187,14 +153,14 @@
             <span class="count" id="sound-flag">OFF</span>
           </div>
           <label class="block">SoundCloud URL<input id="sc-url" class="field bio-field" placeholder="https://soundcloud.com/..." /></label>
-          <input id="audio-input" class="sr-only" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" multiple />
+          <input id="audio-input" class="sr-only" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" multiple tabindex="-1" aria-hidden="true" />
           <div class="row">
             <button type="button" class="btn" id="load-sc">Load SoundCloud</button>
             <button type="button" class="btn outline" id="choose-audio">Add Audio Files</button>
           </div>
           <div class="row" id="audio-transport">
-            <button type="button" class="btn sm icon-mark" id="audio-repeat-btn" aria-label="Repeat all tracks" title="Repeat playlist">🔁</button>
-            <button type="button" class="btn sm icon-mark outline" id="audio-shuffle-btn" aria-label="Shuffle tracks" title="Shuffle playlist">🔀</button>
+            <button type="button" class="btn sm icon-mark" id="audio-repeat-btn" aria-label="Playlist repeat: all tracks" aria-pressed="true" title="Repeat playlist">🔁</button>
+            <button type="button" class="btn sm icon-mark outline" id="audio-shuffle-btn" aria-label="Shuffle tracks" aria-pressed="false" title="Shuffle playlist">🔀</button>
           </div>
           <div class="row hid" id="sound-modes">
             <button type="button" class="btn sm outline" id="use-sc">Use SoundCloud</button>
@@ -206,12 +172,12 @@
           <label class="slider">Music Volume <span><b id="st-val">80</b>%</span><input id="sound-vol" type="range" min="0" max="100" value="80" /></label>
           <label class="slider">Audio Speed <span><b id="audio-speed-val">1.00</b>×</span><input id="audio-speed" type="range" min="0.25" max="2.5" step="0.05" value="1" /></label>
           <div class="row" id="audio-speed-presets">
-            <button type="button" class="btn sm outline" data-aspeed="0.5">0.5×</button>
-            <button type="button" class="btn sm outline" data-aspeed="0.75">0.75×</button>
-            <button type="button" class="btn sm" data-aspeed="1">1.0×</button>
-            <button type="button" class="btn sm outline" data-aspeed="1.25">1.25×</button>
-            <button type="button" class="btn sm outline" data-aspeed="1.5">1.5×</button>
-            <button type="button" class="btn sm outline" data-aspeed="2">2.0×</button>
+            <button type="button" class="btn sm outline" data-aspeed="0.5" aria-pressed="false">0.5×</button>
+            <button type="button" class="btn sm outline" data-aspeed="0.75" aria-pressed="false">0.75×</button>
+            <button type="button" class="btn sm" data-aspeed="1" aria-pressed="true">1.0×</button>
+            <button type="button" class="btn sm outline" data-aspeed="1.25" aria-pressed="false">1.25×</button>
+            <button type="button" class="btn sm outline" data-aspeed="1.5" aria-pressed="false">1.5×</button>
+            <button type="button" class="btn sm outline" data-aspeed="2" aria-pressed="false">2.0×</button>
           </div>
         </section>
 
@@ -234,8 +200,8 @@
             <label class="check"><input id="no-repeat" type="checkbox" /> No repeat shuffle</label>
             <label class="check"><input id="skip-videos" type="checkbox" /> Skip videos</label>
             <div class="row" style="margin:0">
-              <button type="button" class="btn sm" id="fit-contain">Fit</button>
-              <button type="button" class="btn sm outline" id="fit-cover">Fill</button>
+              <button type="button" class="btn sm" id="fit-contain" aria-pressed="true">Fit</button>
+              <button type="button" class="btn sm outline" id="fit-cover" aria-pressed="false">Fill</button>
             </div>
           </div>
           <label class="slider">Crossfade <span><b id="fade-val">0.20</b>s</span><input id="crossfade" type="range" min="0" max="2" step="0.05" value="0.2" /></label>
@@ -253,14 +219,14 @@
           <div class="thumbs" id="thumbs"></div>
         </section>
 
-        <p class="status" id="status"></p>
-      </div>
+        <p class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></p>
+      </main>
 
       <div class="dock sentinel-dock">
         <div class="dock-inner">
           <p id="dock-copy">Add photos to start</p>
           <div class="dock-actions">
-            <button type="button" class="btn icon outline rec-btn" id="record-btn" aria-label="Record reel" title="Record slideshow">⏺</button>
+            <button type="button" class="btn icon outline rec-btn" id="record-btn" aria-label="Record reel" aria-pressed="false" title="Record slideshow" disabled>⏺</button>
             <button type="button" class="btn dock-play" id="play-btn" disabled>Play Reel</button>
           </div>
         </div>
@@ -283,7 +249,7 @@
       <div class="shade fade" id="shade"></div>
       <div class="phud fade" id="phud">
         <div class="phud-meta-wrap">
-          <p class="kicker" id="player-kicker">Gooninator Reloaded</p>
+          <p class="kicker" id="player-kicker">omens plapinator</p>
           <p id="play-meta"></p>
         </div>
         <button type="button" class="btn icon" id="exit-btn" aria-label="Close">✕</button>
@@ -302,23 +268,23 @@
             <output id="slide-video-volume-value" for="slide-video-volume">100%</output>
           </label>
         </div>
-        <button type="button" class="btn icon outline" id="hud-photo-shuffle" aria-label="Shuffle media" title="🖼 shuffle media">🖼🔀</button>
-        <button type="button" class="btn sm outline" id="hud-slow-pan" title="Slow pan & zoom">Pan</button>
-        <button type="button" class="btn sm outline" id="hud-no-repeat">No repeat shuffle</button>
-        <button type="button" class="btn icon outline" id="hud-audio-repeat" aria-label="Repeat soundtrack" title="♪ soundtrack repeat">♪🔁</button>
-        <button type="button" class="btn icon outline" id="hud-audio-shuffle" aria-label="Shuffle soundtrack" title="♪ shuffle">♪🔀</button>
-        <button type="button" class="btn icon outline rec-btn" id="hud-record" aria-label="Record" title="Record this window">⏺</button>
+        <button type="button" class="btn icon outline" id="hud-photo-shuffle" aria-label="Shuffle media" aria-pressed="true" title="🖼 shuffle media">🖼🔀</button>
+        <button type="button" class="btn sm outline" id="hud-slow-pan" aria-label="Slow pan and zoom" aria-pressed="false" title="Slow pan & zoom">Pan</button>
+        <button type="button" class="btn sm outline" id="hud-no-repeat" aria-pressed="false">No repeat shuffle</button>
+        <button type="button" class="btn icon outline" id="hud-audio-repeat" aria-label="Soundtrack repeat: all tracks" aria-pressed="true" title="♪ soundtrack repeat">♪🔁</button>
+        <button type="button" class="btn icon outline" id="hud-audio-shuffle" aria-label="Shuffle soundtrack" aria-pressed="false" title="♪ shuffle">♪🔀</button>
+        <button type="button" class="btn icon outline rec-btn" id="hud-record" aria-label="Record reel" aria-pressed="false" title="Record this window" disabled>⏺</button>
         <button type="button" class="btn icon outline" id="pip-btn" aria-label="Picture in Picture" title="Picture in Picture">▣</button>
         <button type="button" class="btn icon outline" id="full-btn" aria-label="Fullscreen">⛶</button>
       </div>
     </div>
 
-    <div id="install-sheet" class="sheet-bg hid">
-      <div class="panel sentinel-window sheet">
+    <div id="install-sheet" class="sheet-bg hid" aria-hidden="true">
+      <div class="panel sentinel-window sheet" role="dialog" aria-modal="true" aria-labelledby="install-title" tabindex="-1">
         <div class="panel-head">
           <div>
             <p class="idx">Install</p>
-            <h2>Install Gooninator Reloaded</h2>
+            <h2 id="install-title">Install omens plapinator</h2>
           </div>
           <button type="button" class="btn ghost icon" id="sheet-close" aria-label="Close">✕</button>
         </div>
@@ -330,13 +296,11 @@
          their teardowns; it swaps them in place when a new build lands, with no
          reload. Keep new feature work in local/*.js so it stays hot-swappable. -->
     <script src="local/perf.js?v=1"></script>
-    <script src="local/live-update.js?v=2" data-build="2026-08-23-2"></script>
-    <script src="local/cloudyplap.js?v=4" data-hot="local/cloudyplap.js"></script>
+    <script src="local/live-update.js?v=3" data-build="2026-08-24-1"></script>
+    <script src="local/cloudyplap.js?v=5" data-hot="local/cloudyplap.js"></script>
     <script src="vendor/jszip.min.js"></script>
-    <script src="app.js?v=16"></script>
-    <script src="lan-share.js?v=3"></script>
+    <script src="app.js?v=17"></script>
     <script src="local/splat.js?v=1" data-hot="local/splat.js"></script>
-    <script src="local/five-thousand.js?v=2" data-hot="local/five-thousand.js"></script>
-    <script src="local/lan-copy.js?v=1" data-hot="local/lan-copy.js"></script>
+    <script src="local/five-thousand.js?v=3" data-hot="local/five-thousand.js"></script>
   </body>
 </html>
