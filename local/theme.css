@@ -37,8 +37,8 @@ body.theme-cloudyplap .sentinel-chitin-bracket {
 
 #theme-smoke-puff {
   position: fixed;
-  left: 82%;
-  bottom: calc(5rem + min(27vw, 190px));
+  left: 85%;
+  bottom: calc(4.7rem + min(25vw, 140px));
   width: clamp(220px, 30vw, 360px);
   aspect-ratio: 360 / 404;
   transform: translateX(-50%);
@@ -62,40 +62,40 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
 
 #theme-smoke-back .smoke-wisp-video {
   position: absolute;
-  left: 82%;
-  bottom: calc(5rem + min(27vw, 190px));
+  left: 85%;
+  bottom: calc(4.7rem + min(25vw, 140px));
   width: clamp(240px, 32vw, 360px);
   height: auto;
   aspect-ratio: 2 / 3;
   transform: translateX(-50%);
-  opacity: 0.23;
-  filter: contrast(1.08) brightness(0.9) blur(0.2px);
+  opacity: 0.4;
+  filter: contrast(1.16) brightness(1.24) blur(0.2px);
 }
 
 #reel-smoke .smoke-wisp-video {
   position: absolute;
-  left: 82%;
-  bottom: calc(5rem + min(27vw, 190px));
+  left: 85%;
+  bottom: calc(4.7rem + min(25vw, 140px));
   width: clamp(260px, 36vw, 400px);
   height: auto;
   aspect-ratio: 2 / 3;
   transform: translateX(-50%);
-  opacity: 0.27;
-  filter: contrast(1.08) brightness(0.92) blur(0.2px);
+  opacity: 0.38;
+  filter: contrast(1.14) brightness(1.2) blur(0.2px);
 }
 
 #theme-smoke-puff .smoke-wisp-video {
-  opacity: 0.24;
-  filter: contrast(1.04) brightness(0.84) blur(0.35px);
+  opacity: 0.22;
+  filter: contrast(1.05) brightness(0.88) blur(0.35px);
 }
 
 #tina-pipe {
   display: none;
   position: fixed;
-  right: 4vw;
+  right: clamp(1rem, 10vw, 8rem);
   bottom: calc(4.7rem + env(safe-area-inset-bottom, 0px));
   z-index: 55;
-  width: min(56vw, 520px);
+  width: min(38vw, 380px);
   height: auto;
   padding: 0;
   border: 0;
@@ -141,6 +141,19 @@ body:has(#player.on) #tina-pipe {
 @keyframes pipe-puff {
   0%, 100% { transform: rotate(0deg) scale(1); }
   45% { transform: rotate(-1.2deg) scale(0.975); }
+}
+
+@media (max-width: 680px) {
+  #theme-smoke-puff,
+  #theme-smoke-back .smoke-wisp-video,
+  #reel-smoke .smoke-wisp-video {
+    left: 80%;
+  }
+
+  #tina-pipe {
+    right: 4vw;
+    width: min(72vw, 330px);
+  }
 }
 
 .intro-cloudy {
