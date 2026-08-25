@@ -287,7 +287,11 @@
     }, 2850);
   }
 
-  on(pipeButton, "click", puffSmoke);
+  on(pipeButton, "click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    puffSmoke();
+  });
   watch(document.body, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   if (player) watch(player, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   on(document, "visibilitychange", syncSmokePlayback);
