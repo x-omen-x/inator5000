@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-25-2",
-  "note": "Mascot click repaired · TINA MODE now toggles smoke and its visible indicator",
+  "build": "2026-08-25-3",
+  "note": "TINA MODE rebuilt with real seamless smoke, the supplied pipe, and verified mascot art",
   "reload": false,
   "css": [
     "styles.css",
