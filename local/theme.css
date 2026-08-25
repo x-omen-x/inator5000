@@ -85,8 +85,8 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
 }
 
 #theme-smoke-puff .smoke-wisp-video {
-  opacity: 0.22;
-  filter: contrast(1.05) brightness(0.88) blur(0.35px);
+  opacity: 0.32;
+  filter: contrast(1.05) brightness(0.92) blur(0.35px);
 }
 
 #tina-pipe {
