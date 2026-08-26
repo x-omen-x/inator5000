@@ -1,5 +1,5 @@
 {
-  "build": "2026-08-26-6",
+  "build": "2026-08-26-7",
   "note": "iOS overlay playback recovery and composed PiP readiness fix",
   "reload": true,
   "css": [

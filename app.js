@@ -63,6 +63,7 @@ const state = {
   zoom: saved.zoom ?? 1,
   slowPan: saved.slowPan ?? false,
   overlayUrl: null,
+  overlayPreviewUrl: null,
   overlayName: null,
   overlayFile: null,
   transparency: saved.overlayTransparency ?? 35,
@@ -321,7 +322,7 @@ function renderSetup() {
   $("video-preview-wrap").classList.toggle("hid", !state.overlayUrl);
   if (state.overlayUrl) {
     const v = $("video-preview");
-    if (v.src !== state.overlayUrl) v.src = state.overlayUrl;
+    if (v.src !== state.overlayPreviewUrl) v.src = state.overlayPreviewUrl;
     v.loop = true;
     v.muted = true;
     v.play().catch(() => undefined);
@@ -577,7 +578,9 @@ async function importOverlay(file) {
     setStatus("Overlay will play this session only — storage full.");
   }
   if (state.overlayUrl) URL.revokeObjectURL(state.overlayUrl);
+  if (state.overlayPreviewUrl) URL.revokeObjectURL(state.overlayPreviewUrl);
   state.overlayUrl = URL.createObjectURL(file);
+  state.overlayPreviewUrl = URL.createObjectURL(file);
   state.overlayName = file.name;
   state.overlayFile = file;
   setStatus(`Overlay locked · ${file.name}`);
@@ -1807,7 +1810,9 @@ $("clear-sound").onclick = async () => {
 };
 $("clear-video").onclick = async () => {
   if (state.overlayUrl) URL.revokeObjectURL(state.overlayUrl);
+  if (state.overlayPreviewUrl) URL.revokeObjectURL(state.overlayPreviewUrl);
   state.overlayUrl = null;
+  state.overlayPreviewUrl = null;
   state.overlayName = null;
   state.overlayFile = null;
   await idbDel(MEDIA_STORE, ["overlay-video"]);
@@ -2388,6 +2393,7 @@ if ("serviceWorker" in navigator) {
     const overlay = media.find((row) => row.id === "overlay-video" && row.blob);
     if (overlay) {
       state.overlayUrl = URL.createObjectURL(overlay.blob);
+      state.overlayPreviewUrl = URL.createObjectURL(overlay.blob);
       state.overlayName = overlay.name;
       state.overlayFile = overlay.blob;
     }
