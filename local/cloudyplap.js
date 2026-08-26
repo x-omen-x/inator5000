@@ -187,19 +187,29 @@
         smokeFadeTimer = 0;
       }
       document.body.classList.remove("smoke-fading");
-      smokeLayer?.classList.remove("fading");
+      [smokeBackLayer, smokeFrontLayer].forEach((layer) => layer?.classList.remove("fading"));
+      try {
+        ambientVideo.currentTime = 0;
+      } catch {
+        /* metadata can finish loading after the activation gesture */
+      }
       document.body.classList.add("smoke-on");
+      startSmokeDrift();
+      // Let the pipe settle into its dock, then emit the first milky cloud from
+      // the photographed bowl as part of the same mascot activation.
+      later(puffSmoke, 260);
     } else {
       document.body.classList.remove("smoke-on");
       document.body.classList.add("smoke-fading");
-      smokeLayer?.classList.remove("fading");
-      void smokeLayer?.offsetWidth;
-      smokeLayer?.classList.add("fading");
+      [smokeBackLayer, smokeFrontLayer].forEach((layer) => layer?.classList.remove("fading"));
+      void smokeBackLayer?.offsetWidth;
+      [smokeBackLayer, smokeFrontLayer].forEach((layer) => layer?.classList.add("fading"));
+      stopSmokeDrift();
       if (smokeFadeTimer) window.clearTimeout(smokeFadeTimer);
       smokeFadeTimer = later(() => {
         smokeFadeTimer = 0;
         document.body.classList.remove("smoke-fading");
-        smokeLayer?.classList.remove("fading");
+        [smokeBackLayer, smokeFrontLayer].forEach((layer) => layer?.classList.remove("fading"));
         ambientVideo?.pause?.();
       }, 980);
     }
@@ -219,12 +229,17 @@
   glow.setAttribute("aria-hidden", "true");
   document.body.appendChild(glow);
 
-  // Real photographed smoke, manually circular-crossfaded into a 22-second
-  // loop. One ambient decoder is moved between the main and slideshow surfaces
-  // so the interface changes without keeping two copies alive.
+  // Real photographed smoke, manually circular-crossfaded, slowed and rebuilt
+  // as a 49-second 60 fps loop with three time-offset plumes. One ambient
+  // decoder is moved between the main and slideshow surfaces so the interface
+  // changes without keeping two copies alive.
   const player = document.getElementById("player");
   document.getElementById("tina-smoke-main")?.remove();
   document.getElementById("tina-smoke-player")?.remove();
+  document.getElementById("tina-smoke-main-back")?.remove();
+  document.getElementById("tina-smoke-main-front")?.remove();
+  document.getElementById("tina-smoke-player-back")?.remove();
+  document.getElementById("tina-smoke-player-front")?.remove();
   document.getElementById("tina-smoke-puff")?.remove();
   document.getElementById("tina-pipe-main-slot")?.remove();
   document.getElementById("tina-pipe-player-slot")?.remove();
@@ -247,18 +262,34 @@
   }
 
   const smokeSrc = BASE + "assets/smoke-wisp-loop.mp4";
-  const mainSmokeSurface = document.createElement("div");
-  mainSmokeSurface.id = "tina-smoke-main";
-  mainSmokeSurface.setAttribute("aria-hidden", "true");
-  const playerSmokeSurface = document.createElement("div");
-  playerSmokeSurface.id = "tina-smoke-player";
-  playerSmokeSurface.setAttribute("aria-hidden", "true");
+  function smokeSurface(id) {
+    const surface = document.createElement("div");
+    surface.id = id;
+    surface.setAttribute("aria-hidden", "true");
+    return surface;
+  }
 
-  const smokeLayer = document.createElement("div");
-  smokeLayer.id = "tina-smoke-layer";
+  const mainSmokeBackSurface = smokeSurface("tina-smoke-main-back");
+  const mainSmokeFrontSurface = smokeSurface("tina-smoke-main-front");
+  const playerSmokeBackSurface = smokeSurface("tina-smoke-player-back");
+  const playerSmokeFrontSurface = smokeSurface("tina-smoke-player-front");
+
+  const smokeBackLayer = document.createElement("div");
+  smokeBackLayer.id = "tina-smoke-back-layer";
   const ambientVideo = smokeVideo(smokeSrc, true);
-  smokeLayer.appendChild(ambientVideo);
-  mainSmokeSurface.appendChild(smokeLayer);
+  ambientVideo.setAttribute("fetchpriority", "low");
+  smokeBackLayer.appendChild(ambientVideo);
+  mainSmokeBackSurface.appendChild(smokeBackLayer);
+
+  const smokeFrontLayer = document.createElement("div");
+  smokeFrontLayer.id = "tina-smoke-front-layer";
+  const smokeFrontCanvas = document.createElement("canvas");
+  smokeFrontCanvas.className = "smoke-wisp-canvas";
+  smokeFrontCanvas.width = 720;
+  smokeFrontCanvas.height = 540;
+  smokeFrontCanvas.setAttribute("aria-hidden", "true");
+  smokeFrontLayer.appendChild(smokeFrontCanvas);
+  mainSmokeFrontSurface.appendChild(smokeFrontLayer);
 
   const puffLayer = document.createElement("div");
   puffLayer.id = "tina-smoke-puff";
@@ -296,9 +327,10 @@
   const mainPipeSlot = makePipeSlot("tina-pipe-main-slot", mainPipe);
   const playerPipeSlot = makePipeSlot("tina-pipe-player-slot", playerPipe);
   const setup = document.getElementById("setup");
-  setup?.append(mainSmokeSurface, mainPipeSlot);
+  setup?.append(mainSmokeBackSurface, mainSmokeFrontSurface, mainPipeSlot);
   if (player) {
-    player.insertBefore(playerSmokeSurface, player.firstChild);
+    player.insertBefore(playerSmokeBackSurface, player.firstChild);
+    player.insertBefore(playerSmokeFrontSurface, player.firstChild);
     player.appendChild(playerPipeSlot);
   }
 
@@ -322,18 +354,150 @@
   };
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const smokeFrontCtx = smokeFrontCanvas.getContext("2d", { alpha: false, desynchronized: true });
+  let smokeRenderFrame = 0;
+  let smokeRenderMode = "";
+  let lastSmokeTime = -1;
+  let smokeDriftTimer = 0;
+  let smokeWatchTimer = 0;
+  let smokeWatchTime = -1;
+  let smokeWatchMisses = 0;
   let puffTimer = 0;
 
+  function smokeCanPlay() {
+    return (tinaActive || document.body.classList.contains("smoke-fading")) && !document.hidden;
+  }
+
+  function scheduleSmokeFrame() {
+    if (!smokeCanPlay() || smokeRenderFrame) return;
+    if (typeof ambientVideo.requestVideoFrameCallback === "function") {
+      smokeRenderMode = "video";
+      smokeRenderFrame = ambientVideo.requestVideoFrameCallback(renderSmokeFront);
+    } else {
+      smokeRenderMode = "animation";
+      smokeRenderFrame = requestAnimationFrame(renderSmokeFront);
+    }
+  }
+
+  function renderSmokeFront(_now, metadata) {
+    smokeRenderFrame = 0;
+    smokeRenderMode = "";
+    if (!smokeCanPlay()) {
+      return;
+    }
+    const mediaTime = metadata?.mediaTime ?? ambientVideo.currentTime;
+    if (ambientVideo.readyState >= 2 && mediaTime !== lastSmokeTime) {
+      lastSmokeTime = mediaTime;
+      smokeFrontCtx.drawImage(ambientVideo, 0, 0, smokeFrontCanvas.width, smokeFrontCanvas.height);
+    }
+    scheduleSmokeFrame();
+  }
+
+  function startSmokeRenderer() {
+    scheduleSmokeFrame();
+  }
+
+  function stopSmokeRenderer() {
+    if (!smokeRenderFrame) return;
+    if (smokeRenderMode === "video" && typeof ambientVideo.cancelVideoFrameCallback === "function") {
+      ambientVideo.cancelVideoFrameCallback(smokeRenderFrame);
+    } else {
+      cancelAnimationFrame(smokeRenderFrame);
+    }
+    smokeRenderFrame = 0;
+    smokeRenderMode = "";
+  }
+
+  function stopSmokeWatchdog() {
+    if (smokeWatchTimer) {
+      window.clearTimeout(smokeWatchTimer);
+      timers.delete(smokeWatchTimer);
+      smokeWatchTimer = 0;
+    }
+    smokeWatchTime = -1;
+    smokeWatchMisses = 0;
+  }
+
+  function watchSmokePlayback() {
+    smokeWatchTimer = 0;
+    if (!smokeCanPlay()) {
+      stopSmokeWatchdog();
+      return;
+    }
+    const now = ambientVideo.currentTime;
+    const stopped = ambientVideo.paused || ambientVideo.ended ||
+      (ambientVideo.readyState >= 2 && smokeWatchTime >= 0 && Math.abs(now - smokeWatchTime) < 0.03);
+    smokeWatchMisses = stopped ? smokeWatchMisses + 1 : 0;
+    if (smokeWatchMisses >= 2) {
+      if (ambientVideo.ended && Number.isFinite(ambientVideo.duration)) {
+        try { ambientVideo.currentTime = 0; } catch { /* metadata can still be settling */ }
+      }
+      ambientVideo.play().catch(() => undefined);
+      stopSmokeRenderer();
+      startSmokeRenderer();
+      smokeWatchMisses = 0;
+    }
+    smokeWatchTime = ambientVideo.currentTime;
+    smokeWatchTimer = later(watchSmokePlayback, 1500);
+  }
+
+  function startSmokeWatchdog() {
+    if (smokeWatchTimer) return;
+    smokeWatchTime = ambientVideo.currentTime;
+    smokeWatchMisses = 0;
+    smokeWatchTimer = later(watchSmokePlayback, 1500);
+  }
+
+  function setRandomDrift(element, front) {
+    const spread = front ? 9 : 6;
+    const seconds = front ? 6 + Math.random() * 5 : 8 + Math.random() * 6;
+    element.style.setProperty("--smoke-drift-x", `${(Math.random() * 2 - 1) * spread}vw`);
+    element.style.setProperty("--smoke-drift-y", `${(Math.random() * 2 - 1) * (front ? 3.5 : 2.5)}vh`);
+    element.style.setProperty("--smoke-drift-rot", `${(Math.random() * 2 - 1) * (front ? 3.2 : 2.1)}deg`);
+    element.style.setProperty("--smoke-drift-scale", String(0.96 + Math.random() * (front ? 0.13 : 0.09)));
+    element.style.setProperty("--smoke-drift-time", `${seconds.toFixed(2)}s`);
+    return seconds;
+  }
+
+  function driftSmoke() {
+    if (!tinaActive || reduceMotion.matches) return;
+    const backSeconds = setRandomDrift(ambientVideo, false);
+    const frontSeconds = setRandomDrift(smokeFrontCanvas, true);
+    smokeDriftTimer = later(driftSmoke, Math.min(backSeconds, frontSeconds) * 1000);
+  }
+
+  function startSmokeDrift() {
+    if (smokeDriftTimer) {
+      window.clearTimeout(smokeDriftTimer);
+      timers.delete(smokeDriftTimer);
+    }
+    if (reduceMotion.matches) return;
+    smokeDriftTimer = later(driftSmoke, 120);
+  }
+
+  function stopSmokeDrift() {
+    if (!smokeDriftTimer) return;
+    window.clearTimeout(smokeDriftTimer);
+    timers.delete(smokeDriftTimer);
+    smokeDriftTimer = 0;
+  }
+
   function syncSmokePlayback() {
-    const canPlay = (tinaActive || document.body.classList.contains("smoke-fading")) && !document.hidden;
+    const canPlay = smokeCanPlay();
     const reelOpen = Boolean(player?.classList.contains("on"));
-    const target = reelOpen ? playerSmokeSurface : mainSmokeSurface;
-    if (smokeLayer.parentNode !== target) target.appendChild(smokeLayer);
-    if (puffLayer.parentNode !== target) target.appendChild(puffLayer);
+    const backTarget = reelOpen ? playerSmokeBackSurface : mainSmokeBackSurface;
+    const frontTarget = reelOpen ? playerSmokeFrontSurface : mainSmokeFrontSurface;
+    if (smokeBackLayer.parentNode !== backTarget) backTarget.appendChild(smokeBackLayer);
+    if (smokeFrontLayer.parentNode !== frontTarget) frontTarget.appendChild(smokeFrontLayer);
+    if (puffLayer.parentNode !== frontTarget) frontTarget.appendChild(puffLayer);
     if (canPlay) {
       ambientVideo.play().catch(() => undefined);
+      startSmokeRenderer();
+      startSmokeWatchdog();
     } else {
       ambientVideo.pause();
+      stopSmokeRenderer();
+      stopSmokeWatchdog();
     }
     if (!canPlay) {
       puffVideo.pause();
@@ -365,7 +529,7 @@
       pipeButtons.forEach((button) => button.classList.remove("puffing"));
       puffLayer.classList.remove("puffing");
       puffVideo.pause();
-    }, 2850);
+    }, 3200);
   }
 
   pipeButtons.forEach((pipeButton) => {
@@ -380,7 +544,24 @@
   watch(document.body, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   if (player) watch(player, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   on(document, "visibilitychange", syncSmokePlayback);
-  if (reduceMotion.addEventListener) on(reduceMotion, "change", syncSmokePlayback);
+  on(ambientVideo, "waiting", () => {
+    if (!smokeCanPlay()) return;
+    ambientVideo.play().catch(() => undefined);
+    stopSmokeRenderer();
+    startSmokeRenderer();
+  });
+  on(ambientVideo, "stalled", () => {
+    if (!smokeCanPlay()) return;
+    ambientVideo.play().catch(() => undefined);
+    stopSmokeRenderer();
+    startSmokeRenderer();
+  });
+  if (reduceMotion.addEventListener) {
+    on(reduceMotion, "change", () => {
+      if (tinaActive) startSmokeDrift();
+      syncSmokePlayback();
+    });
+  }
 
   /* -------------------------------------------------------------- lifecycle */
 
@@ -402,8 +583,12 @@
         /* already gone */
       }
     });
-    playerSmokeSurface.remove();
-    mainSmokeSurface.remove();
+    stopSmokeRenderer();
+    stopSmokeWatchdog();
+    playerSmokeBackSurface.remove();
+    playerSmokeFrontSurface.remove();
+    mainSmokeBackSurface.remove();
+    mainSmokeFrontSurface.remove();
     puffLayer.remove();
     mainPipeSlot.remove();
     playerPipeSlot.remove();

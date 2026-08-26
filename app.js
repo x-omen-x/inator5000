@@ -1078,6 +1078,9 @@ function playOverlayWhenReady(video) {
   const attempt = () => {
     if (token !== overlayPlayToken || !overlayShouldPlay()) return;
     video.play().catch(() => undefined);
+    // WebKit can reject or silently park a local-Blob overlay without emitting
+    // `stalled`; the progress watcher provides the same bounded retry path.
+    startOverlayWatchdog();
   };
   if (video.readyState >= 2) attempt();
   else video.addEventListener("canplay", attempt, { once: true });
@@ -1146,9 +1149,53 @@ function syncMedia() {
 }
 
 let overlayRecoveryTimer = 0;
+let overlayWatchTimer = 0;
+let overlayWatchTime = -1;
+let overlayWatchMisses = 0;
 
 function overlayShouldPlay() {
   return Boolean(state.playing && state.overlayUrl && $("player").classList.contains("on") && !document.hidden);
+}
+
+function stopOverlayWatchdog() {
+  window.clearTimeout(overlayWatchTimer);
+  overlayWatchTimer = 0;
+  overlayWatchTime = -1;
+  overlayWatchMisses = 0;
+}
+
+function watchOverlayProgress() {
+  overlayWatchTimer = 0;
+  if (!overlayShouldPlay()) {
+    stopOverlayWatchdog();
+    return;
+  }
+  const video = $("overlay-vid");
+  if (video.ended && !state.overlayLoop) {
+    stopOverlayWatchdog();
+    return;
+  }
+  const now = video.currentTime;
+  const shouldHaveFrames = !video.ended || state.overlayLoop;
+  const stopped = shouldHaveFrames && (video.paused ||
+    (video.readyState >= 2 && overlayWatchTime >= 0 && Math.abs(now - overlayWatchTime) < 0.04));
+  overlayWatchMisses = stopped ? overlayWatchMisses + 1 : 0;
+  if (overlayWatchMisses >= 2) {
+    if (video.ended && state.overlayLoop) {
+      try { video.currentTime = 0; } catch { /* metadata is still loading */ }
+    }
+    playOverlayWhenReady(video);
+    overlayWatchMisses = 0;
+  }
+  overlayWatchTime = video.currentTime;
+  overlayWatchTimer = window.setTimeout(watchOverlayProgress, 1250);
+}
+
+function startOverlayWatchdog() {
+  if (overlayWatchTimer || !overlayShouldPlay()) return;
+  overlayWatchTime = $("overlay-vid").currentTime;
+  overlayWatchMisses = 0;
+  overlayWatchTimer = window.setTimeout(watchOverlayProgress, 1250);
 }
 
 function scheduleOverlayRecovery() {
@@ -1176,7 +1223,13 @@ overlayVideo.addEventListener("ended", () => {
 });
 overlayVideo.addEventListener("stalled", scheduleOverlayRecovery);
 overlayVideo.addEventListener("waiting", scheduleOverlayRecovery);
-overlayVideo.addEventListener("playing", () => window.clearTimeout(overlayRecoveryTimer));
+overlayVideo.addEventListener("playing", () => {
+  window.clearTimeout(overlayRecoveryTimer);
+  startOverlayWatchdog();
+});
+overlayVideo.addEventListener("pause", () => {
+  if (!overlayShouldPlay()) stopOverlayWatchdog();
+});
 
 function loadSc() {
   if (window.SC?.Widget) return Promise.resolve(window.SC);
