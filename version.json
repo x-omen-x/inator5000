@@ -1,5 +1,5 @@
 {
-  "build": "2026-08-26-3",
+  "build": "2026-08-26-4",
   "note": "Native composed PiP, integrated TINA docks, and launch-only updates",
   "reload": true,
   "css": [
