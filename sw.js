@@ -1,10 +1,10 @@
-const CACHE = "omens-plapinator-v41";
+const CACHE = "omens-plapinator-v42";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=18",
-  "./app.js?v=27",
+  "./app.js?v=28",
   "./fonts.css",
   "./vendor/jszip.min.js",
   "./spurr.m4a",
@@ -24,11 +24,11 @@ const SHELL = [
   "./version.json",
   "./local/perf.js?v=1",
   "./local/live-update.js?v=4",
-  "./local/cloudyplap.js?v=16",
+  "./local/cloudyplap.js?v=17",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=3",
   "./local/five-thousand.css?v=2",
-  "./local/theme.css?v=16",
+  "./local/theme.css?v=17",
   "./local/fonts/title-faces.css?v=5",
   "./local/fonts/bungee.woff2",
   "./local/fonts/bungee-shade.woff2",
@@ -111,6 +111,44 @@ async function cacheFirst(request) {
   return response;
 }
 
+async function cachedRange(request) {
+  const range = request.headers.get("range");
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(range || "");
+  const cache = await caches.open(CACHE);
+  const cacheKey = new Request(request.url, { method: "GET" });
+  let full = await cache.match(cacheKey);
+  if (!full) {
+    full = await fetch(cacheKey);
+    if (full.ok) await cache.put(cacheKey, full.clone());
+  }
+  if (!full?.ok || !match) return full || fetch(request);
+
+  const bytes = await full.arrayBuffer();
+  const size = bytes.byteLength;
+  let start;
+  let end;
+  if (!match[1]) {
+    const suffix = Number(match[2]);
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start > end || start >= size) {
+    return new Response(null, {
+      status: 416,
+      headers: { "Content-Range": `bytes */${size}` },
+    });
+  }
+
+  const headers = new Headers(full.headers);
+  headers.set("Accept-Ranges", "bytes");
+  headers.set("Content-Range", `bytes ${start}-${end}/${size}`);
+  headers.set("Content-Length", String(end - start + 1));
+  return new Response(bytes.slice(start, end + 1), { status: 206, headers });
+}
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
@@ -118,6 +156,15 @@ self.addEventListener("fetch", (event) => {
   if (url.protocol === "blob:" || url.protocol === "data:") return;
   if (/soundcloud\.com|snd\.sc|w\.soundcloud/.test(url.hostname)) return;
   if (url.origin !== self.location.origin) return;
+
+  // HTML media elements request later sections as byte ranges. Return a real
+  // 206 slice from the complete offline shell entry; serving the cached 200
+  // response to a Range request makes Chromium/WebKit stop after its first
+  // decoded buffer even though the element still reports `paused=false`.
+  if (request.headers.has("range")) {
+    event.respondWith(cachedRange(request));
+    return;
+  }
 
   if (url.pathname.endsWith("/version.json")) {
     event.respondWith(networkFirst(request, "./version.json"));

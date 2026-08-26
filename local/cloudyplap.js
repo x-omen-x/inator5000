@@ -426,7 +426,7 @@
     }
     const now = ambientVideo.currentTime;
     const stopped = ambientVideo.paused || ambientVideo.ended ||
-      (ambientVideo.readyState >= 2 && smokeWatchTime >= 0 && Math.abs(now - smokeWatchTime) < 0.03);
+      (smokeWatchTime >= 0 && Math.abs(now - smokeWatchTime) < 0.03);
     smokeWatchMisses = stopped ? smokeWatchMisses + 1 : 0;
     if (smokeWatchMisses >= 2) {
       // Chromium and WebKit can leave a decorative video in a false-playing
