@@ -21,7 +21,7 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="fonts.css" />
-    <link rel="stylesheet" href="styles.css?v=17" />
+    <link rel="stylesheet" href="styles.css?v=18" />
     <link rel="stylesheet" href="local/five-thousand.css?v=2" />
     <style>
       .slider input[type="range"] {
@@ -206,6 +206,7 @@
           </div>
           <label class="slider">Crossfade <span><b id="fade-val">0.20</b>s</span><input id="crossfade" type="range" min="0" max="2" step="0.05" value="0.2" /></label>
           <label class="slider">Zoom <span><b id="zoom-val">1.0</b>×</span><input id="zoom" type="range" min="1" max="2.4" step="0.1" value="1" /></label>
+          <label class="slider">Slideshow Volume <span><b id="main-slide-video-volume-value">100</b>%</span><input id="main-slide-video-volume" type="range" min="0" max="100" value="100" aria-label="Slideshow video volume" /></label>
           <label class="check"><input id="slow-pan" type="checkbox" /> Slow pan &amp; zoom</label>
         </section>
 
@@ -242,7 +243,7 @@
       <audio id="local-audio"></audio>
       <iframe id="sc-frame" class="hid" title="SoundCloud" allow="autoplay"></iframe>
       <canvas id="pip-canvas" width="1280" height="720" aria-hidden="true"></canvas>
-      <video id="pip-video" playsinline muted controls aria-label="Picture in Picture slideshow"></video>
+      <video id="pip-video" playsinline muted autoplay controls aria-label="Picture in Picture slideshow"></video>
 
       <div class="rec-dot hid" id="rec-dot" aria-hidden="true">⏺</div>
 
@@ -255,27 +256,31 @@
         <button type="button" class="btn icon" id="exit-btn" aria-label="Close">✕</button>
       </div>
 
-      <div class="pctl fade" id="pctl">
-        <button type="button" class="btn icon outline" id="prev-btn" aria-label="Previous">‹</button>
-        <button type="button" class="btn icon" id="toggle-btn" aria-label="Pause">❚❚</button>
-        <button type="button" class="btn icon outline" id="next-btn" aria-label="Next">›</button>
-        <button type="button" class="btn sm outline" id="skip-video-btn">Skip video</button>
+      <div class="pctl fade" id="pctl" role="toolbar" aria-label="Slideshow controls">
+        <div class="pctl-group pctl-transport">
+          <button type="button" class="btn sm outline" id="prev-btn" aria-label="Previous">Previous</button>
+          <button type="button" class="btn sm" id="toggle-btn" aria-label="Pause">Pause</button>
+          <button type="button" class="btn sm outline" id="next-btn" aria-label="Next">Next</button>
+          <button type="button" class="btn sm outline" id="skip-video-btn">Skip</button>
+        </div>
         <div class="video-audio-controls hid" id="slide-video-audio" role="group" aria-label="Slideshow video volume">
           <button type="button" class="btn sm outline" id="slide-video-mute" aria-pressed="false">Mute</button>
           <label class="video-volume" for="slide-video-volume">
-            <span>Video</span>
+            <span>Volume</span>
             <input id="slide-video-volume" type="range" min="0" max="100" value="100" aria-label="Slideshow video volume" />
             <output id="slide-video-volume-value" for="slide-video-volume">100%</output>
           </label>
         </div>
-        <button type="button" class="btn icon outline" id="hud-photo-shuffle" aria-label="Shuffle media" aria-pressed="true" title="🖼 shuffle media">🖼🔀</button>
-        <button type="button" class="btn sm outline" id="hud-slow-pan" aria-label="Slow pan and zoom" aria-pressed="false" title="Slow pan & zoom">Pan</button>
-        <button type="button" class="btn sm outline" id="hud-no-repeat" aria-pressed="false">No repeat shuffle</button>
-        <button type="button" class="btn icon outline" id="hud-audio-repeat" aria-label="Soundtrack repeat: all tracks" aria-pressed="true" title="♪ soundtrack repeat">♪🔁</button>
-        <button type="button" class="btn icon outline" id="hud-audio-shuffle" aria-label="Shuffle soundtrack" aria-pressed="false" title="♪ shuffle">♪🔀</button>
-        <button type="button" class="btn icon outline rec-btn" id="hud-record" aria-label="Record reel" aria-pressed="false" title="Record this window" disabled>⏺</button>
-        <button type="button" class="btn icon outline" id="pip-btn" aria-label="Picture in Picture" title="Picture in Picture">▣</button>
-        <button type="button" class="btn icon outline" id="full-btn" aria-label="Fullscreen">⛶</button>
+        <div class="pctl-group pctl-options">
+          <button type="button" class="btn sm outline" id="hud-photo-shuffle" aria-label="Shuffle media" aria-pressed="true" title="Shuffle media">Shuffle</button>
+          <button type="button" class="btn sm outline" id="hud-slow-pan" aria-label="Slow pan and zoom" aria-pressed="false" title="Slow pan and zoom">Pan</button>
+          <button type="button" class="btn sm outline" id="hud-no-repeat" aria-pressed="false">No repeat</button>
+          <button type="button" class="btn sm outline" id="hud-audio-repeat" aria-label="Soundtrack repeat: all tracks" aria-pressed="true" title="Repeat soundtrack">Repeat</button>
+          <button type="button" class="btn sm outline" id="hud-audio-shuffle" aria-label="Shuffle soundtrack" aria-pressed="false" title="Shuffle soundtrack">Audio shuffle</button>
+          <button type="button" class="btn sm outline rec-btn" id="hud-record" aria-label="Record reel" aria-pressed="false" title="Record slideshow" disabled>Record</button>
+          <button type="button" class="btn sm outline" id="pip-btn" aria-label="Picture in Picture" title="Picture in Picture">PiP</button>
+          <button type="button" class="btn sm outline" id="full-btn" aria-label="Fullscreen">Full</button>
+        </div>
       </div>
     </div>
 
@@ -292,15 +297,14 @@
         <button type="button" class="btn" id="sheet-ok" style="width:100%;margin-top:1.25rem">Got it</button>
       </div>
     </div>
-    <!-- Live update channel. Loads first so the hot modules below can register
-         their teardowns; it swaps them in place when a new build lands, with no
-         reload. Keep new feature work in local/*.js so it stays hot-swappable. -->
+    <!-- The app-shell update check runs once at launch. Open pages remain on
+         their current build until the user refreshes them. -->
     <script src="local/perf.js?v=1"></script>
-    <script src="local/live-update.js?v=3" data-build="2026-08-26-2"></script>
-    <script src="local/cloudyplap.js?v=13" data-hot="local/cloudyplap.js"></script>
+    <script src="local/live-update.js?v=4" data-build="2026-08-26-3"></script>
+    <script src="local/cloudyplap.js?v=14"></script>
     <script src="vendor/jszip.min.js"></script>
-    <script src="app.js?v=19"></script>
-    <script src="local/splat.js?v=1" data-hot="local/splat.js"></script>
-    <script src="local/five-thousand.js?v=3" data-hot="local/five-thousand.js"></script>
+    <script src="app.js?v=20"></script>
+    <script src="local/splat.js?v=1"></script>
+    <script src="local/five-thousand.js?v=3"></script>
   </body>
 </html>

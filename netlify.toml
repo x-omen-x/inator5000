@@ -15,17 +15,13 @@
     Cross-Origin-Resource-Policy = "same-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
 
-# The build manifest drives the live-update channel: open instances ask for it
-# when they come back to the foreground, and roughly every quarter of an hour
-# while they are being looked at. It has to be fresh, but it does not have to
-# come from the origin every time — a minute at the edge collapses every open
-# tab's poll into one request back here, and the browsers revalidate rather
-# than re-download, so a poll that finds nothing new costs an empty 304.
+# The build manifest is checked once when a document is opened or refreshed.
+# It is never polled by an open tab or fetched by a closed installed app.
 [[headers]]
   for = "/version.json"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
-    Netlify-CDN-Cache-Control = "public, s-maxage=60, stale-while-revalidate=600"
+    Netlify-CDN-Cache-Control = "public, s-maxage=0, must-revalidate"
 
 # Everything below is content-stable: a font, an image, a clip or a sound only
 # ever changes by being replaced under a new name. Caching them for a year

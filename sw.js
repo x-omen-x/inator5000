@@ -1,10 +1,10 @@
-const CACHE = "omens-plapinator-v33";
+const CACHE = "omens-plapinator-v34";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=17",
-  "./app.js?v=19",
+  "./styles.css?v=18",
+  "./app.js?v=20",
   "./fonts.css",
   "./vendor/jszip.min.js",
   "./spurr.m4a",
@@ -23,12 +23,12 @@ const SHELL = [
   "./fonts/matrix.woff",
   "./version.json",
   "./local/perf.js?v=1",
-  "./local/live-update.js?v=3",
-  "./local/cloudyplap.js?v=13",
+  "./local/live-update.js?v=4",
+  "./local/cloudyplap.js?v=14",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=3",
   "./local/five-thousand.css?v=2",
-  "./local/theme.css?v=13",
+  "./local/theme.css?v=14",
   "./local/fonts/title-faces.css?v=5",
   "./local/fonts/bungee.woff2",
   "./local/fonts/bungee-shade.woff2",
@@ -89,18 +89,6 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
-  if (event.data?.type === "CHECK_FOR_UPDATE") {
-    event.waitUntil?.(self.registration.update().catch(() => undefined));
-  }
-});
-
-// Installed Chromium PWAs may wake this worker while the app is closed. iOS
-// does not expose Periodic Background Sync, so it safely falls back to the
-// launch/foreground checks in app.js and live-update.js.
-self.addEventListener("periodicsync", (event) => {
-  if (event.tag === "app-shell-update") {
-    event.waitUntil(self.registration.update().catch(() => undefined));
-  }
 });
 
 async function networkFirst(request, fallback) {

@@ -1,8 +1,7 @@
 /* omens plapinator theme
 
-   Hot module: torn down and re-run in place by local/live-update.js when a new
-   build lands, so open instances pick the change up without a reload. Every
-   node, timer, observer and listener it creates is registered for teardown. */
+   Theme module: loaded once per app launch or manual refresh. Every node, timer,
+   observer and listener it creates is registered for teardown. */
 (function cloudyplap() {
   const NAME = "cloudyplap";
   window.__hotTeardown?.(NAME);
@@ -11,8 +10,8 @@
 
   const SRC = document.currentScript?.src || "local/cloudyplap.js";
   const BASE = SRC.replace(/[^/]+$/, "");
-  // Carry this script's own cache-buster onto the stylesheets it injects, so a
-  // hot re-run picks up the new theme.css instead of the cached one.
+  // Carry this script's own cache-buster onto the stylesheet it injects, so a
+  // refreshed launch picks up the matching theme.css instead of a stale copy.
   const VER = new URL(SRC, location.href).searchParams.get("v") || "3";
 
   const disposers = [];
@@ -42,8 +41,8 @@
   const theme = document.createElement("link");
   theme.rel = "stylesheet";
   theme.href = `${BASE}theme.css?v=${encodeURIComponent(VER)}`;
-  // The outgoing copies only go once the replacements have painted, so the
-  // page never flashes unstyled during a hot swap.
+  // The outgoing copy only goes once the replacement has painted, so a reload
+  // never flashes unstyled during stylesheet replacement.
   const stale = [...document.querySelectorAll('link[data-cloudyplap="1"]')];
   [faces, theme].forEach((link) => {
     link.dataset.cloudyplap = "1";
@@ -111,7 +110,7 @@
   tinaIndicator.hidden = true;
   document.body.appendChild(tinaIndicator);
   on(theme, "error", () => {
-    document.body.classList.remove("theme-cloudyplap", "smoke-on");
+    document.body.classList.remove("theme-cloudyplap", "smoke-on", "smoke-fading");
     if (brand) {
       brand.hidden = false;
       brand.textContent = "OMENS PLAPINATOR";
@@ -164,8 +163,9 @@
 
   // TINA MODE always starts inactive. It can only be changed by activating the
   // mascot, which also makes the current state visible and accessible.
-  document.body.classList.remove("smoke-on");
+  document.body.classList.remove("smoke-on", "smoke-fading");
   let tinaActive = false;
+  let smokeFadeTimer = 0;
 
   function bounceMascot() {
     mascot.classList.remove("acting");
@@ -179,12 +179,30 @@
     if (tinaActive) {
       // Defer the footage download until the user explicitly enables TINA,
       // then let the browser buffer enough to keep the real-smoke loop smooth.
-      ambientVideos?.forEach?.((video) => {
-        video.preload = "auto";
-      });
+      if (ambientVideo) ambientVideo.preload = "auto";
       puffVideo && (puffVideo.preload = "auto");
+      if (smokeFadeTimer) {
+        window.clearTimeout(smokeFadeTimer);
+        timers.delete(smokeFadeTimer);
+        smokeFadeTimer = 0;
+      }
+      document.body.classList.remove("smoke-fading");
+      smokeLayer?.classList.remove("fading");
+      document.body.classList.add("smoke-on");
+    } else {
+      document.body.classList.remove("smoke-on");
+      document.body.classList.add("smoke-fading");
+      smokeLayer?.classList.remove("fading");
+      void smokeLayer?.offsetWidth;
+      smokeLayer?.classList.add("fading");
+      if (smokeFadeTimer) window.clearTimeout(smokeFadeTimer);
+      smokeFadeTimer = later(() => {
+        smokeFadeTimer = 0;
+        document.body.classList.remove("smoke-fading");
+        smokeLayer?.classList.remove("fading");
+        ambientVideo?.pause?.();
+      }, 980);
     }
-    document.body.classList.toggle("smoke-on", tinaActive);
     mascot.setAttribute("aria-pressed", String(tinaActive));
     mascot.setAttribute("aria-label", `${tinaActive ? "Deactivate" : "Activate"} TINA MODE`);
     mascot.title = `${tinaActive ? "Deactivate" : "Activate"} TINA MODE`;
@@ -202,13 +220,14 @@
   document.body.appendChild(glow);
 
   // Real photographed smoke, manually circular-crossfaded into a 22-second
-  // loop. There is exactly one active 360x540 decoder: the main-page copy is
-  // paused when the fullscreen reel copy is playing, and vice versa.
+  // loop. One ambient decoder is moved between the main and slideshow surfaces
+  // so the interface changes without keeping two copies alive.
   const player = document.getElementById("player");
-  document.getElementById("theme-smoke-back")?.remove();
-  document.getElementById("theme-smoke-puff")?.remove();
-  document.getElementById("tina-pipe")?.remove();
-  document.getElementById("reel-smoke")?.remove();
+  document.getElementById("tina-smoke-main")?.remove();
+  document.getElementById("tina-smoke-player")?.remove();
+  document.getElementById("tina-smoke-puff")?.remove();
+  document.getElementById("tina-pipe-main-slot")?.remove();
+  document.getElementById("tina-pipe-player-slot")?.remove();
 
   function smokeVideo(src, loop) {
     const video = document.createElement("video");
@@ -228,64 +247,94 @@
   }
 
   const smokeSrc = BASE + "assets/smoke-wisp-loop.mp4";
-  const themeSmokeBack = document.createElement("div");
-  themeSmokeBack.id = "theme-smoke-back";
-  themeSmokeBack.setAttribute("aria-hidden", "true");
-  const mainSmokeVideo = smokeVideo(smokeSrc, true);
-  themeSmokeBack.appendChild(mainSmokeVideo);
-  document.body.appendChild(themeSmokeBack);
+  const mainSmokeSurface = document.createElement("div");
+  mainSmokeSurface.id = "tina-smoke-main";
+  mainSmokeSurface.setAttribute("aria-hidden", "true");
+  const playerSmokeSurface = document.createElement("div");
+  playerSmokeSurface.id = "tina-smoke-player";
+  playerSmokeSurface.setAttribute("aria-hidden", "true");
 
-  const reelSmoke = document.createElement("div");
-  reelSmoke.id = "reel-smoke";
-  reelSmoke.setAttribute("aria-hidden", "true");
-  const reelSmokeVideo = smokeVideo(smokeSrc, true);
-  reelSmoke.appendChild(reelSmokeVideo);
-  if (player) player.insertBefore(reelSmoke, player.firstChild);
+  const smokeLayer = document.createElement("div");
+  smokeLayer.id = "tina-smoke-layer";
+  const ambientVideo = smokeVideo(smokeSrc, true);
+  smokeLayer.appendChild(ambientVideo);
+  mainSmokeSurface.appendChild(smokeLayer);
 
   const puffLayer = document.createElement("div");
-  puffLayer.id = "theme-smoke-puff";
+  puffLayer.id = "tina-smoke-puff";
   puffLayer.setAttribute("aria-hidden", "true");
   const puffVideo = smokeVideo(BASE + "assets/smoke-puff.mp4", false);
   puffLayer.appendChild(puffVideo);
-  document.body.appendChild(puffLayer);
 
-  const pipeButton = document.createElement("button");
-  pipeButton.type = "button";
-  pipeButton.id = "tina-pipe";
-  pipeButton.setAttribute("aria-label", "Puff smoke");
-  pipeButton.title = "Puff smoke";
-  const pipeImg = document.createElement("img");
-  pipeImg.src = BASE + "assets/pipe.png?v=2";
-  pipeImg.alt = "";
-  pipeButton.appendChild(pipeImg);
-  document.body.appendChild(pipeButton);
+  function makePipeButton(id) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = id;
+    button.className = "tina-pipe-button";
+    button.setAttribute("aria-label", "Puff smoke");
+    button.title = "Puff smoke";
+    const image = document.createElement("img");
+    image.src = BASE + "assets/pipe.png?v=2";
+    image.alt = "";
+    button.appendChild(image);
+    return button;
+  }
+
+  const mainPipe = makePipeButton("tina-pipe-main");
+  const playerPipe = makePipeButton("tina-pipe-player");
+  const pipeButtons = [mainPipe, playerPipe];
+
+  function makePipeSlot(id, pipeButton) {
+    const slot = document.createElement("div");
+    slot.id = id;
+    const rest = document.createElement("div");
+    rest.className = "tina-pipe-rest";
+    slot.append(rest, pipeButton);
+    return slot;
+  }
+
+  const mainPipeSlot = makePipeSlot("tina-pipe-main-slot", mainPipe);
+  const playerPipeSlot = makePipeSlot("tina-pipe-player-slot", playerPipe);
+  const setup = document.getElementById("setup");
+  setup?.append(mainSmokeSurface, mainPipeSlot);
+  if (player) {
+    player.insertBefore(playerSmokeSurface, player.firstChild);
+    player.appendChild(playerPipeSlot);
+  }
+
+  // The compositor in app.js can include the same real smoke footage in the
+  // native PiP stream without creating another decoder or sending local media
+  // anywhere.
+  window.__tinaSmokePip = {
+    draw(ctx, canvas) {
+      if (!tinaActive || ambientVideo.readyState < 2) return;
+      const sw = ambientVideo.videoWidth || 360;
+      const sh = ambientVideo.videoHeight || 540;
+      const height = canvas.height * 1.25;
+      const width = height * (sw / sh);
+      ctx.save();
+      ctx.globalAlpha = 0.86;
+      ctx.globalCompositeOperation = "screen";
+      ctx.filter = "contrast(1.28) brightness(1.36)";
+      ctx.drawImage(ambientVideo, canvas.width - width - canvas.width * 0.02, canvas.height - height + canvas.height * 0.08, width, height);
+      ctx.restore();
+    },
+  };
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const ambientVideos = [mainSmokeVideo, reelSmokeVideo];
   let puffTimer = 0;
 
   function syncSmokePlayback() {
-    // TINA is an explicit opt-in control, so iOS Reduce Motion does not silently
-    // remove the requested smoke. It still disables the decorative pipe nudge.
-    const canPlay = tinaActive && !document.hidden;
+    const canPlay = (tinaActive || document.body.classList.contains("smoke-fading")) && !document.hidden;
     const reelOpen = Boolean(player?.classList.contains("on"));
-    const activeVideo = reelOpen ? reelSmokeVideo : mainSmokeVideo;
-    const inactiveVideo = reelOpen ? mainSmokeVideo : reelSmokeVideo;
-    if (canPlay && inactiveVideo.currentTime > 0 && activeVideo.readyState >= 1) {
-      const duration = Number(activeVideo.duration) || 22;
-      const target = inactiveVideo.currentTime % duration;
-      if (Math.abs(activeVideo.currentTime - target) > 0.35) {
-        try {
-          activeVideo.currentTime = target;
-        } catch {
-          /* Safari can reject seeks until metadata finishes loading. */
-        }
-      }
+    const target = reelOpen ? playerSmokeSurface : mainSmokeSurface;
+    if (smokeLayer.parentNode !== target) target.appendChild(smokeLayer);
+    if (puffLayer.parentNode !== target) target.appendChild(puffLayer);
+    if (canPlay) {
+      ambientVideo.play().catch(() => undefined);
+    } else {
+      ambientVideo.pause();
     }
-    ambientVideos.forEach((video) => {
-      if (canPlay && video === activeVideo) video.play().catch(() => undefined);
-      else video.pause();
-    });
     if (!canPlay) {
       puffVideo.pause();
       puffLayer.classList.remove("puffing");
@@ -299,10 +348,11 @@
       timers.delete(puffTimer);
       puffTimer = 0;
     }
-    pipeButton.classList.remove("puffing");
+    pipeButtons.forEach((button) => button.classList.remove("puffing"));
     puffLayer.classList.remove("puffing");
-    void pipeButton.offsetWidth;
-    pipeButton.classList.add("puffing");
+    const visiblePipe = player?.classList.contains("on") ? playerPipe : mainPipe;
+    void visiblePipe.offsetWidth;
+    visiblePipe.classList.add("puffing");
     puffLayer.classList.add("puffing");
     try {
       puffVideo.currentTime = 0;
@@ -312,19 +362,21 @@
     puffVideo.play().catch(() => undefined);
     puffTimer = later(() => {
       puffTimer = 0;
-      pipeButton.classList.remove("puffing");
+      pipeButtons.forEach((button) => button.classList.remove("puffing"));
       puffLayer.classList.remove("puffing");
       puffVideo.pause();
     }, 2850);
   }
 
-  on(pipeButton, "click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    puffSmoke();
+  pipeButtons.forEach((pipeButton) => {
+    on(pipeButton, "click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      puffSmoke();
+    });
+    on(pipeButton, "pointerdown", (event) => event.stopPropagation());
+    on(pipeButton, "pointerup", (event) => event.stopPropagation());
   });
-  on(pipeButton, "pointerdown", (event) => event.stopPropagation());
-  on(pipeButton, "pointerup", (event) => event.stopPropagation());
   watch(document.body, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   if (player) watch(player, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   on(document, "visibilitychange", syncSmokePlayback);
@@ -342,7 +394,7 @@
     });
     timers.forEach((id) => window.clearTimeout(id));
     timers.clear();
-    [...ambientVideos, puffVideo].forEach((v) => {
+    [ambientVideo, puffVideo].forEach((v) => {
       try {
         v.pause();
         v.removeAttribute("src");
@@ -350,14 +402,16 @@
         /* already gone */
       }
     });
-    reelSmoke.remove();
-    themeSmokeBack.remove();
+    playerSmokeSurface.remove();
+    mainSmokeSurface.remove();
     puffLayer.remove();
-    pipeButton.remove();
+    mainPipeSlot.remove();
+    playerPipeSlot.remove();
     tinaIndicator.remove();
     document.body.classList.remove("smoke-on");
     glow.remove();
     mascot.remove();
+    window.__tinaSmokePip = null;
     window.__cloudyplap = false;
     // The stylesheets stay until the replacement's have loaded; the incoming
     // run tags and removes them.

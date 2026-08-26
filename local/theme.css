@@ -2,12 +2,15 @@
 body.theme-cloudyplap {
   background: #000 !important;
   background-image: none !important;
-  --tina-pipe-width: min(31vw, 330px);
-  --tina-pipe-right: clamp(1rem, 8vw, 6rem);
+  --tina-pipe-width: min(27vw, 290px);
+  --tina-pipe-right: clamp(1rem, 7vw, 5rem);
   --tina-pipe-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
-  /* The smoke origin is the photographed bowl hole at x=74.1%, y=18.2%. */
-  --tina-smoke-right: calc(var(--tina-pipe-right) + min(8.03vw, 85.5px));
-  --tina-smoke-bottom: calc(var(--tina-pipe-bottom) + min(9.49vw, 101px));
+  /* The smoke origin follows the photographed bowl hole at x=74.1%, y=18.2%.
+     The values are scaled with the smaller displayed pipe. */
+  --tina-pipe-hole-right: min(7vw, 75px);
+  --tina-pipe-hole-bottom: min(8.6vw, 92px);
+  --tina-smoke-right: calc(var(--tina-pipe-right) + var(--tina-pipe-hole-right));
+  --tina-smoke-bottom: calc(var(--tina-pipe-bottom) + var(--tina-pipe-hole-bottom));
 }
 
 body.theme-cloudyplap #intro-glitch,
@@ -20,41 +23,51 @@ body.theme-cloudyplap .sentinel-chitin-bracket {
   display: none !important;
 }
 
-#theme-smoke-back,
-#reel-smoke,
-#theme-smoke-puff {
+#tina-smoke-main,
+#tina-smoke-player,
+#tina-smoke-puff,
+#tina-pipe-main-slot,
+#tina-pipe-player-slot {
   display: none;
   pointer-events: none;
   overflow: hidden;
   mix-blend-mode: screen;
 }
 
-#theme-smoke-back {
+#tina-smoke-main {
   position: fixed;
   inset: 0;
   z-index: 2;
 }
 
-#reel-smoke {
+#tina-smoke-player {
   position: absolute;
   inset: 0;
   z-index: 12;
 }
 
-#theme-smoke-puff {
-  position: fixed;
+#tina-smoke-layer {
+  position: absolute;
   right: var(--tina-smoke-right);
   bottom: var(--tina-smoke-bottom);
-  width: clamp(220px, 26vw, 320px);
-  aspect-ratio: 360 / 404;
+  width: clamp(340px, 48vw, 620px);
+  aspect-ratio: 2 / 3;
   transform: translateX(50%);
-  z-index: 226;
+  opacity: 0.92;
+  filter: contrast(1.34) brightness(1.5) blur(0.12px);
+  mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 64% 78% at 50% 64%, #000 0%, #000 56%, rgba(0, 0, 0, 0.8) 76%, transparent 100%);
+  mask-image: radial-gradient(ellipse 64% 78% at 50% 64%, #000 0%, #000 56%, rgba(0, 0, 0, 0.8) 76%, transparent 100%);
+  will-change: opacity, transform, filter;
 }
 
-body.theme-cloudyplap.smoke-on:not(:has(#player.on)) #theme-smoke-back,
-body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
-#theme-smoke-puff.puffing {
-  display: block;
+#tina-smoke-layer.fading {
+  animation: tina-smoke-dissipate 0.95s ease-out forwards;
+}
+
+@keyframes tina-smoke-dissipate {
+  0% { opacity: 0.92; transform: translateX(50%) translateY(0) scale(1); filter: contrast(1.34) brightness(1.5) blur(0.12px); }
+  100% { opacity: 0; transform: translateX(50%) translateY(-5vh) scale(1.08); filter: contrast(0.9) brightness(1.1) blur(10px); }
 }
 
 .smoke-wisp-video {
@@ -63,48 +76,97 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
   height: 100%;
   object-fit: cover;
   object-position: center bottom;
+  pointer-events: none;
   mix-blend-mode: screen;
 }
 
-#theme-smoke-back .smoke-wisp-video {
+body.theme-cloudyplap.smoke-on #tina-smoke-main,
+body.theme-cloudyplap.smoke-fading #tina-smoke-main,
+body.theme-cloudyplap.smoke-on #player.on #tina-smoke-player,
+body.theme-cloudyplap.smoke-fading #player.on #tina-smoke-player,
+#tina-smoke-puff.puffing,
+body.theme-cloudyplap.smoke-on #tina-pipe-main-slot,
+body.theme-cloudyplap.smoke-on #player.on #tina-pipe-player-slot {
+  display: block;
+}
+
+#tina-smoke-puff {
   position: absolute;
   right: var(--tina-smoke-right);
   bottom: var(--tina-smoke-bottom);
-  width: clamp(260px, 34vw, 380px);
-  height: auto;
-  aspect-ratio: 2 / 3;
+  width: clamp(220px, 28vw, 340px);
+  aspect-ratio: 360 / 404;
   transform: translateX(50%);
-  opacity: 0.72;
-  filter: contrast(1.2) brightness(1.38) blur(0.15px);
+  z-index: 226;
+  mix-blend-mode: screen;
 }
 
-#reel-smoke .smoke-wisp-video {
+#tina-smoke-puff .smoke-wisp-video {
+  opacity: 0.92;
+  filter: contrast(1.16) brightness(1.34) blur(0.22px);
+  /* Fade every edge, especially the lower source edge that previously read as
+     a rectangular video boundary. */
+  -webkit-mask-image: radial-gradient(ellipse 64% 55% at 50% 43%, #000 0%, #000 42%, rgba(0, 0, 0, 0.78) 66%, transparent 100%);
+  mask-image: radial-gradient(ellipse 64% 55% at 50% 43%, #000 0%, #000 42%, rgba(0, 0, 0, 0.78) 66%, transparent 100%);
+}
+
+.tina-pipe-rest {
   position: absolute;
-  right: var(--tina-smoke-right);
-  bottom: var(--tina-smoke-bottom);
-  width: clamp(270px, 36vw, 400px);
-  height: auto;
-  aspect-ratio: 2 / 3;
-  transform: translateX(50%);
-  opacity: 0.66;
-  filter: contrast(1.18) brightness(1.32) blur(0.15px);
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4.9rem;
+  border: 1px solid rgba(57, 255, 106, 0.44);
+  border-bottom: 0;
+  border-radius: 1.2rem 0 0 0;
+  background: linear-gradient(180deg, rgba(8, 32, 14, 0.2), rgba(0, 12, 4, 0.92));
+  box-shadow: inset 0 1px 0 rgba(190, 255, 202, 0.16), 0 -10px 32px rgba(0, 0, 0, 0.7);
 }
 
-#theme-smoke-puff .smoke-wisp-video {
-  opacity: 0.68;
-  filter: contrast(1.12) brightness(1.22) blur(0.3px);
-  /* Every edge reaches fully transparent; the old mask left the lower centre
-     partly opaque, which exposed the video rectangle during a bright puff. */
-  -webkit-mask-image: radial-gradient(ellipse 48% 31% at 50% 69%, #000 0%, #000 40%, rgba(0, 0, 0, 0.78) 58%, transparent 100%);
-  mask-image: radial-gradient(ellipse 48% 31% at 50% 69%, #000 0%, #000 40%, rgba(0, 0, 0, 0.78) 58%, transparent 100%);
+.tina-pipe-rest::before {
+  content: "TINA MODE";
+  position: absolute;
+  right: 1rem;
+  bottom: 0.55rem;
+  color: rgba(165, 255, 183, 0.62);
+  font: 700 0.6rem/1 "Share Tech Mono", monospace;
+  letter-spacing: 0.18em;
 }
 
-#tina-pipe {
-  display: none;
+#tina-pipe-main-slot,
+#tina-pipe-player-slot {
+  overflow: visible;
+  mix-blend-mode: normal;
+}
+
+#tina-pipe-main-slot {
   position: fixed;
+  right: 0;
+  bottom: 0;
+  width: min(42vw, 390px);
+  height: calc(var(--tina-pipe-bottom) + 7rem);
+  z-index: 55;
+}
+
+#tina-pipe-player-slot {
+  position: absolute;
+  inset: 0;
+  z-index: 225;
+}
+
+#tina-pipe-player-slot .tina-pipe-rest {
+  width: min(43vw, 410px);
+  height: 5.1rem;
+  border-radius: 1.2rem 0 0 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.78));
+}
+
+.tina-pipe-button {
+  display: none;
+  position: absolute;
   right: var(--tina-pipe-right);
   bottom: var(--tina-pipe-bottom);
-  z-index: 55;
+  z-index: 2;
   width: var(--tina-pipe-width);
   height: auto;
   padding: 0;
@@ -112,25 +174,18 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
   background: transparent;
   box-shadow: none;
   cursor: pointer;
+  pointer-events: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   filter: drop-shadow(0 11px 14px rgba(0, 0, 0, 0.72));
 }
 
-body.theme-cloudyplap.smoke-on #tina-pipe {
+body.theme-cloudyplap.smoke-on #tina-pipe-main-slot .tina-pipe-button,
+body.theme-cloudyplap.smoke-on #player.on #tina-pipe-player-slot .tina-pipe-button {
   display: block;
 }
 
-body:has(#player.on) #tina-pipe {
-  z-index: 225;
-}
-
-body:has(#player.pip-docked) #tina-pipe,
-#player.pip-docked #reel-smoke {
-  display: none !important;
-}
-
-#tina-pipe img {
+.tina-pipe-button img {
   position: relative;
   z-index: 1;
   display: block;
@@ -139,19 +194,19 @@ body:has(#player.pip-docked) #tina-pipe,
   pointer-events: none;
 }
 
-#tina-pipe:hover,
-#tina-pipe:focus-visible {
+.tina-pipe-button:hover,
+.tina-pipe-button:focus-visible {
   filter:
     drop-shadow(0 11px 14px rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 10px rgba(150, 255, 180, 0.28));
 }
 
-#tina-pipe:focus-visible {
+.tina-pipe-button:focus-visible {
   outline: 2px solid #9dffb5;
   outline-offset: 4px;
 }
 
-#tina-pipe.puffing {
+.tina-pipe-button.puffing {
   animation: pipe-puff 0.28s ease-out;
 }
 
@@ -162,20 +217,38 @@ body:has(#player.pip-docked) #tina-pipe,
 
 @media (max-width: 680px) {
   body.theme-cloudyplap {
-    --tina-pipe-width: min(62vw, 280px);
+    --tina-pipe-width: min(54vw, 250px);
     --tina-pipe-right: clamp(0.7rem, 3vw, 1.25rem);
     --tina-pipe-bottom: calc(4.8rem + env(safe-area-inset-bottom, 0px));
-    --tina-smoke-right: calc(var(--tina-pipe-right) + min(16.06vw, 72.5px));
-    --tina-smoke-bottom: calc(var(--tina-pipe-bottom) + min(18.97vw, 85.7px));
+    --tina-pipe-hole-right: min(14vw, 64px);
+    --tina-pipe-hole-bottom: min(16vw, 76px);
+    --tina-smoke-right: calc(var(--tina-pipe-right) + var(--tina-pipe-hole-right));
+    --tina-smoke-bottom: calc(var(--tina-pipe-bottom) + var(--tina-pipe-hole-bottom));
   }
 
-  #theme-smoke-puff {
+  #tina-smoke-layer {
+    width: min(86vw, 410px);
+  }
+
+  #tina-smoke-puff {
     width: min(76vw, 300px);
   }
 
-  #theme-smoke-back .smoke-wisp-video,
-  #reel-smoke .smoke-wisp-video {
-    width: min(74vw, 310px);
+  #tina-pipe-main-slot,
+  #tina-pipe-player-slot {
+    width: min(84vw, 330px);
+  }
+
+  #tina-pipe-main-slot .tina-pipe-rest,
+  #tina-pipe-player-slot .tina-pipe-rest {
+    width: 100%;
+    height: 4.4rem;
+  }
+
+  .tina-pipe-rest::before {
+    right: 0.7rem;
+    bottom: 0.45rem;
+    font-size: 0.52rem;
   }
 }
 
@@ -273,16 +346,18 @@ body.theme-cloudyplap .title-brand {
 .intro-cloudy .cp-sub,
 body.theme-cloudyplap .brand-lockup .brand-word {
   display: inline-block;
-  font-family: "Ghastly Panic", "New Rocker", fantasy, serif;
+  /* The title uses the bundled condensed display face; Ghastly Panic is kept
+     for the secondary treatment only. */
+  font-family: "Anton", "Bebas Neue", Impact, "Arial Narrow", sans-serif;
   font-weight: 400;
-  font-size: clamp(2.2rem, 8.6vw, 5rem);
-  letter-spacing: 0.02em;
-  line-height: 0.9;
-  text-transform: lowercase;
+  font-size: clamp(2rem, 7.6vw, 4.6rem);
+  letter-spacing: 0.06em;
+  line-height: 0.92;
+  text-transform: uppercase;
   margin: 0;
   white-space: nowrap;
-  -webkit-text-stroke: 1.15px rgba(160, 210, 170, 0.45);
-  transform: scaleX(1.12);
+  -webkit-text-stroke: 0;
+  transform: scaleX(1.04);
   transform-origin: center;
   color: #c8f5d4;
   -webkit-text-fill-color: #c8f5d4;
@@ -302,6 +377,16 @@ body.theme-cloudyplap .brand-lockup .brand-word {
     drop-shadow(0 0 2px #c8efd0)
     drop-shadow(0 0 7px rgba(40, 160, 80, 0.45));
   animation: swirl-core 7.5s linear infinite;
+}
+
+.intro-cloudy .cp-sub {
+  font-family: "Ghastly Panic", "New Rocker", fantasy, serif;
+  font-size: clamp(2.2rem, 8.6vw, 5rem);
+  letter-spacing: 0.02em;
+  line-height: 0.9;
+  text-transform: lowercase;
+  -webkit-text-stroke: 1.15px rgba(160, 210, 170, 0.45);
+  transform: scaleX(1.12);
 }
 
 body.theme-cloudyplap .brand-lockup {
@@ -498,7 +583,7 @@ body.theme-cloudyplap .dock.sentinel-dock {
     animation: none !important;
   }
 
-  #tina-pipe.puffing {
+  .tina-pipe-button.puffing {
     animation: none !important;
   }
 }

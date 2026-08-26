@@ -340,6 +340,7 @@ function renderSetup() {
   $("audio-speed-val").textContent = `${Number(state.audioSpeed).toFixed(2)}×`;
   $("zoom-val").textContent = Number(state.zoom).toFixed(1);
   $("fade-val").textContent = Number(state.crossfade).toFixed(2);
+  $("main-slide-video-volume-value").textContent = String(Math.round(state.slideVideoVolume));
 
   $("shuffle").checked = state.shuffle;
   $("no-repeat").checked = state.noRepeat;
@@ -350,6 +351,7 @@ function renderSetup() {
   $("audio-speed").value = state.audioSpeed;
   $("zoom").value = state.zoom;
   $("crossfade").value = state.crossfade;
+  $("main-slide-video-volume").value = state.slideVideoVolume;
 
   applyCrossfade();
 
@@ -375,13 +377,14 @@ function renderSetup() {
   }
   const hudAudioRepeat = $("hud-audio-repeat");
   if (hudAudioRepeat) {
-    hudAudioRepeat.textContent = `♪${repeatSymbol()}`;
+    hudAudioRepeat.textContent = "Repeat";
     hudAudioRepeat.classList.toggle("outline", state.audioRepeat === "off");
     hudAudioRepeat.setAttribute("aria-label", repeatLabel("Soundtrack"));
     hudAudioRepeat.setAttribute("aria-pressed", String(state.audioRepeat !== "off"));
   }
   const hudAudioShuffle = $("hud-audio-shuffle");
   if (hudAudioShuffle) {
+    hudAudioShuffle.textContent = "Audio shuffle";
     hudAudioShuffle.classList.toggle("outline", !state.audioShuffle);
     hudAudioShuffle.setAttribute("aria-pressed", String(state.audioShuffle));
   }
@@ -1133,10 +1136,9 @@ function enterPlayer() {
   resetShuffleBag();
   applyCrossfade();
   $("setup").classList.add("hid");
-  $("player").classList.remove("pip-docked");
   $("player").classList.add("on");
   setPipButtonLabel("Picture in Picture");
-  $("toggle-btn").textContent = "❚❚";
+  $("toggle-btn").textContent = "Pause";
   $("toggle-btn").setAttribute("aria-label", "Pause");
   $("toggle-btn").setAttribute("aria-pressed", "true");
   ensureAudioGraph();
@@ -1167,7 +1169,7 @@ function exitPlayer() {
   $("overlay-vid").pause();
   $("local-audio").pause();
   scWidget?.pause();
-  $("player").classList.remove("on", "pip-docked");
+  $("player").classList.remove("on");
   setPipButtonLabel("Picture in Picture");
   $("setup").classList.remove("hid");
   syncSlideVideoAudio();
@@ -1176,7 +1178,7 @@ function exitPlayer() {
 
 function togglePlay() {
   state.playing = !state.playing;
-  $("toggle-btn").textContent = state.playing ? "❚❚" : "▶";
+  $("toggle-btn").textContent = state.playing ? "Pause" : "Play";
   $("toggle-btn").setAttribute("aria-label", state.playing ? "Pause" : "Play");
   $("toggle-btn").setAttribute("aria-pressed", String(state.playing));
   if (state.playing) ensureAudioGraph();
@@ -1234,6 +1236,9 @@ function renderPipFrame(ts) {
     drawPipSource(ctx, overlay, "cover");
     ctx.restore();
   }
+  // TINA exposes the same local smoke frame to the compositor. This keeps the
+  // native PiP window visually consistent without adding another decoder.
+  window.__tinaSmokePip?.draw?.(ctx, canvas);
 }
 function startPipRenderer() {
   if (!pipFrame) {
@@ -1241,6 +1246,21 @@ function startPipRenderer() {
     renderPipFrame();
   }
 }
+
+function captureCanvasStream(canvas) {
+  const capture = canvas?.captureStream || canvas?.webkitCaptureStream;
+  if (typeof capture !== "function") return null;
+  try {
+    return capture.call(canvas, 30);
+  } catch {
+    try {
+      return capture.call(canvas);
+    } catch {
+      return null;
+    }
+  }
+}
+
 function stopPipRenderer() {
   if (state.recording) return;
   cancelAnimationFrame(pipFrame);
@@ -1248,6 +1268,7 @@ function stopPipRenderer() {
   pipStream?.getTracks?.().forEach((track) => track.stop());
   pipStream = null;
   const video = $("pip-video");
+  video.pause();
   if (video.srcObject) video.srcObject = null;
 }
 
@@ -1255,24 +1276,6 @@ function setPipButtonLabel(label) {
   const button = $("pip-btn");
   button.setAttribute("aria-label", label);
   button.title = label;
-}
-
-function restoreDockedPlayer() {
-  const player = $("player");
-  if (!player.classList.contains("pip-docked")) return false;
-  player.classList.remove("pip-docked");
-  $("setup").classList.add("hid");
-  setPipButtonLabel("Picture in Picture");
-  bumpChrome();
-  return true;
-}
-
-function dockPlayerInWindow() {
-  $("player").classList.add("pip-docked");
-  $("setup").classList.remove("hid");
-  setPipButtonLabel("Restore full player");
-  bumpChrome();
-  setStatus("PiP is docked securely inside this window. Native PiP is unavailable for still images here.");
 }
 
 function supportsNativePip(video) {
@@ -1286,6 +1289,10 @@ function supportsNativePip(video) {
 }
 
 async function requestNativePip(video) {
+  if (!video) throw new Error("PiP video unavailable");
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
   await video.play();
   if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") {
     await video.requestPictureInPicture();
@@ -1298,31 +1305,20 @@ async function requestNativePip(video) {
 }
 
 async function openPip() {
-  if (restoreDockedPlayer()) return;
-  const forceSameWindowDock = new URLSearchParams(location.search).get("pip") === "dock";
-
-  // iOS exposes real system PiP for a real HTMLVideoElement. Use the current
-  // video slide directly instead of routing it through a canvas MediaStream,
-  // which mobile Safari cannot present in PiP.
-  const source = currentVisual();
-  if (!forceSameWindowDock && source?.tagName === "VIDEO" && supportsNativePip(source)) {
-    try {
-      await requestNativePip(source);
-      setStatus("Native Picture in Picture is active.");
-      return;
-    } catch {
-      pipNativeTarget = null;
-      /* fall through to the composed player or same-window dock */
-    }
-  }
-
-  // Chromium and compatible desktop browsers can present the fully composed
-  // slideshow as a native PiP video. The frames never leave this page.
+  // Always use one composed video surface. This keeps image slides, video
+  // slides, fit/zoom, and the local overlay in the same native PiP window on
+  // every browser that supports canvas capture streams, including WebKit's
+  // iOS presentation-mode API where available.
   const canvas = $("pip-canvas");
   const video = $("pip-video");
-  if (!forceSameWindowDock && canvas.captureStream && supportsNativePip(video)) {
+  if (supportsNativePip(video)) {
     startPipRenderer();
-    pipStream = canvas.captureStream(24);
+    pipStream = captureCanvasStream(canvas);
+    if (!pipStream) {
+      stopPipRenderer();
+      setStatus("Native Picture in Picture is unavailable in this browser.");
+      return;
+    }
     video.srcObject = pipStream;
     try {
       await requestNativePip(video);
@@ -1333,10 +1329,7 @@ async function openPip() {
       stopPipRenderer();
     }
   }
-
-  // iOS cannot create a native PiP window from still-image canvas output.
-  // Keep the live player in a same-window dock instead of opening a popup.
-  dockPlayerInWindow();
+  setStatus("Native Picture in Picture is unavailable in this browser.");
 }
 
 function onNativePipClosed(event) {
@@ -1449,6 +1442,7 @@ function setRecUi(on) {
     button.setAttribute("aria-pressed", String(on));
     button.setAttribute("aria-label", on ? "Stop recording" : "Record reel");
     button.title = on ? "Stop recording" : "Record slideshow";
+    if (button.id === "hud-record") button.textContent = on ? "Stop" : "Record";
   }
 }
 
@@ -1948,6 +1942,13 @@ $("slide-video-volume").oninput = (event) => {
   syncSlideVideoAudio();
   bumpChrome();
 };
+$("main-slide-video-volume").oninput = (event) => {
+  state.slideVideoVolume = Number(event.target.value);
+  if (state.slideVideoVolume > 0) state.slideVideoMuted = false;
+  writeSettings({ slideVideoVolume: state.slideVideoVolume, slideVideoMuted: state.slideVideoMuted });
+  $("main-slide-video-volume-value").textContent = String(Math.round(state.slideVideoVolume));
+  syncSlideVideoAudio();
+};
 $("pip-btn").onclick = openPip;
 
 async function toggleFullscreen() {
@@ -2118,16 +2119,8 @@ $("install-sheet").addEventListener("keydown", (event) => {
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
-    .register("sw.js?v=33", { updateViaCache: "none" })
-    .then(async (reg) => {
-      await reg.update().catch(() => undefined);
-      // Where the installed-PWA platform supports closed-app periodic work,
-      // ask it to revalidate only the same-origin app shell. No user media is
-      // included in this registration or any service-worker request.
-      await reg.periodicSync
-        ?.register("app-shell-update", { minInterval: 6 * 60 * 60 * 1000 })
-        .catch(() => undefined);
-    })
+    .register("sw.js?v=34", { updateViaCache: "none" })
+    .then((reg) => reg.update().catch(() => undefined))
     .catch(() => undefined);
 }
 
