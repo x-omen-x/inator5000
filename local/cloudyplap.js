@@ -176,6 +176,14 @@
 
   function setTinaMode(active) {
     tinaActive = Boolean(active);
+    if (tinaActive) {
+      // Defer the footage download until the user explicitly enables TINA,
+      // then let the browser buffer enough to keep the real-smoke loop smooth.
+      ambientVideos?.forEach?.((video) => {
+        video.preload = "auto";
+      });
+      puffVideo && (puffVideo.preload = "auto");
+    }
     document.body.classList.toggle("smoke-on", tinaActive);
     mascot.setAttribute("aria-pressed", String(tinaActive));
     mascot.setAttribute("aria-label", `${tinaActive ? "Deactivate" : "Activate"} TINA MODE`);
@@ -210,6 +218,8 @@
     video.defaultMuted = true;
     video.loop = Boolean(loop);
     video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
     video.preload = "metadata";
     video.disablePictureInPicture = true;
     video.setAttribute("aria-hidden", "true");
@@ -245,18 +255,33 @@
   pipeButton.setAttribute("aria-label", "Puff smoke");
   pipeButton.title = "Puff smoke";
   const pipeImg = document.createElement("img");
-  pipeImg.src = BASE + "assets/pipe.png";
+  pipeImg.src = BASE + "assets/pipe.png?v=2";
   pipeImg.alt = "";
   pipeButton.appendChild(pipeImg);
   document.body.appendChild(pipeButton);
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const ambientVideos = [mainSmokeVideo, reelSmokeVideo];
+  let puffTimer = 0;
 
   function syncSmokePlayback() {
-    const canPlay = tinaActive && !document.hidden && !reduceMotion.matches;
+    // TINA is an explicit opt-in control, so iOS Reduce Motion does not silently
+    // remove the requested smoke. It still disables the decorative pipe nudge.
+    const canPlay = tinaActive && !document.hidden;
     const reelOpen = Boolean(player?.classList.contains("on"));
     const activeVideo = reelOpen ? reelSmokeVideo : mainSmokeVideo;
+    const inactiveVideo = reelOpen ? mainSmokeVideo : reelSmokeVideo;
+    if (canPlay && inactiveVideo.currentTime > 0 && activeVideo.readyState >= 1) {
+      const duration = Number(activeVideo.duration) || 22;
+      const target = inactiveVideo.currentTime % duration;
+      if (Math.abs(activeVideo.currentTime - target) > 0.35) {
+        try {
+          activeVideo.currentTime = target;
+        } catch {
+          /* Safari can reject seeks until metadata finishes loading. */
+        }
+      }
+    }
     ambientVideos.forEach((video) => {
       if (canPlay && video === activeVideo) video.play().catch(() => undefined);
       else video.pause();
@@ -268,7 +293,12 @@
   }
 
   function puffSmoke() {
-    if (!tinaActive || reduceMotion.matches) return;
+    if (!tinaActive) return;
+    if (puffTimer) {
+      window.clearTimeout(puffTimer);
+      timers.delete(puffTimer);
+      puffTimer = 0;
+    }
     pipeButton.classList.remove("puffing");
     puffLayer.classList.remove("puffing");
     void pipeButton.offsetWidth;
@@ -280,7 +310,8 @@
       /* metadata is allowed to finish loading */
     }
     puffVideo.play().catch(() => undefined);
-    later(() => {
+    puffTimer = later(() => {
+      puffTimer = 0;
       pipeButton.classList.remove("puffing");
       puffLayer.classList.remove("puffing");
       puffVideo.pause();
@@ -292,6 +323,8 @@
     event.stopPropagation();
     puffSmoke();
   });
+  on(pipeButton, "pointerdown", (event) => event.stopPropagation());
+  on(pipeButton, "pointerup", (event) => event.stopPropagation());
   watch(document.body, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   if (player) watch(player, syncSmokePlayback, { attributes: true, attributeFilter: ["class"] });
   on(document, "visibilitychange", syncSmokePlayback);

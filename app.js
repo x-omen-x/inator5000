@@ -669,8 +669,7 @@ let hideTimer = 0;
 let scWidget = null;
 let pipStream = null;
 let pipFrame = 0;
-let pipWindow = null;
-let pipFallbackCanvas = null;
+let pipNativeTarget = null;
 let videoHold = false;
 let frontStill = "a";
 const decoded = new Map();
@@ -1134,7 +1133,9 @@ function enterPlayer() {
   resetShuffleBag();
   applyCrossfade();
   $("setup").classList.add("hid");
+  $("player").classList.remove("pip-docked");
   $("player").classList.add("on");
+  setPipButtonLabel("Picture in Picture");
   $("toggle-btn").textContent = "❚❚";
   $("toggle-btn").setAttribute("aria-label", "Pause");
   $("toggle-btn").setAttribute("aria-pressed", "true");
@@ -1147,6 +1148,16 @@ function enterPlayer() {
 
 function exitPlayer() {
   if (state.recording) stopRecording();
+  document.exitPictureInPicture?.().catch?.(() => undefined);
+  try {
+    if (pipNativeTarget?.webkitPresentationMode === "picture-in-picture") {
+      pipNativeTarget.webkitSetPresentationMode("inline");
+    }
+  } catch {
+    /* PiP was already closed by the browser. */
+  }
+  pipNativeTarget = null;
+  stopPipRenderer();
   state.playing = false;
   rainPaused = false;
   window.dispatchEvent(new Event("flashreel:rain"));
@@ -1156,7 +1167,8 @@ function exitPlayer() {
   $("overlay-vid").pause();
   $("local-audio").pause();
   scWidget?.pause();
-  $("player").classList.remove("on");
+  $("player").classList.remove("on", "pip-docked");
+  setPipButtonLabel("Picture in Picture");
   $("setup").classList.remove("hid");
   syncSlideVideoAudio();
   renderSetup();
@@ -1222,11 +1234,6 @@ function renderPipFrame(ts) {
     drawPipSource(ctx, overlay, "cover");
     ctx.restore();
   }
-  if (pipFallbackCanvas) {
-    const fallbackCtx = pipFallbackCanvas.getContext("2d");
-    fallbackCtx.clearRect(0, 0, pipFallbackCanvas.width, pipFallbackCanvas.height);
-    fallbackCtx.drawImage(canvas, 0, 0, pipFallbackCanvas.width, pipFallbackCanvas.height);
-  }
 }
 function startPipRenderer() {
   if (!pipFrame) {
@@ -1238,62 +1245,110 @@ function stopPipRenderer() {
   if (state.recording) return;
   cancelAnimationFrame(pipFrame);
   pipFrame = 0;
+  pipStream?.getTracks?.().forEach((track) => track.stop());
+  pipStream = null;
+  const video = $("pip-video");
+  if (video.srcObject) video.srcObject = null;
+}
+
+function setPipButtonLabel(label) {
+  const button = $("pip-btn");
+  button.setAttribute("aria-label", label);
+  button.title = label;
+}
+
+function restoreDockedPlayer() {
+  const player = $("player");
+  if (!player.classList.contains("pip-docked")) return false;
+  player.classList.remove("pip-docked");
+  $("setup").classList.add("hid");
+  setPipButtonLabel("Picture in Picture");
+  bumpChrome();
+  return true;
+}
+
+function dockPlayerInWindow() {
+  $("player").classList.add("pip-docked");
+  $("setup").classList.remove("hid");
+  setPipButtonLabel("Restore full player");
+  bumpChrome();
+  setStatus("PiP is docked securely inside this window. Native PiP is unavailable for still images here.");
+}
+
+function supportsNativePip(video) {
+  if (!video) return false;
+  if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") return true;
+  try {
+    return Boolean(video.webkitSupportsPresentationMode?.("picture-in-picture"));
+  } catch {
+    return false;
+  }
+}
+
+async function requestNativePip(video) {
+  await video.play();
+  if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") {
+    await video.requestPictureInPicture();
+  } else if (video.webkitSupportsPresentationMode?.("picture-in-picture")) {
+    video.webkitSetPresentationMode("picture-in-picture");
+  } else {
+    throw new Error("Native PiP unavailable");
+  }
+  pipNativeTarget = video;
 }
 
 async function openPip() {
+  if (restoreDockedPlayer()) return;
+
+  // iOS exposes real system PiP for a real HTMLVideoElement. Use the current
+  // video slide directly instead of routing it through a canvas MediaStream,
+  // which mobile Safari cannot present in PiP.
+  const source = currentVisual();
+  if (source?.tagName === "VIDEO" && supportsNativePip(source)) {
+    try {
+      await requestNativePip(source);
+      setStatus("Native Picture in Picture is active.");
+      return;
+    } catch {
+      pipNativeTarget = null;
+      /* fall through to the composed player or same-window dock */
+    }
+  }
+
+  // Chromium and compatible desktop browsers can present the fully composed
+  // slideshow as a native PiP video. The frames never leave this page.
   const canvas = $("pip-canvas");
   const video = $("pip-video");
-  startPipRenderer();
-  if (!pipStream && canvas.captureStream) pipStream = canvas.captureStream(30);
-  if (pipStream && video.srcObject !== pipStream) video.srcObject = pipStream;
-  try {
-    await video.play();
-    if (document.pictureInPictureEnabled && video.requestPictureInPicture) {
-      await video.requestPictureInPicture();
+  if (canvas.captureStream && supportsNativePip(video)) {
+    startPipRenderer();
+    pipStream = canvas.captureStream(24);
+    video.srcObject = pipStream;
+    try {
+      await requestNativePip(video);
+      setStatus("Native Picture in Picture is active.");
       return;
+    } catch {
+      pipNativeTarget = null;
+      stopPipRenderer();
     }
-    if (video.webkitSupportsPresentationMode?.("picture-in-picture")) {
-      video.webkitSetPresentationMode("picture-in-picture");
-      return;
-    }
-  } catch {
-    /* fallback */
   }
-  pipWindow = window.open("", "omens-plapinator-pip", "popup=yes,width=480,height=300,resizable=yes");
-  if (!pipWindow) {
-    stopPipRenderer();
-    setStatus("Picture in Picture was blocked.");
-    return;
-  }
-  pipWindow.document.title = "Picture in Picture";
-  pipWindow.document.body.style.cssText = "margin:0;background:#000;overflow:hidden";
-  let detachedVideo = null;
-  if (pipStream) {
-    detachedVideo = pipWindow.document.createElement("video");
-    detachedVideo.autoplay = true;
-    detachedVideo.muted = true;
-    detachedVideo.controls = true;
-    detachedVideo.style.cssText = "display:block;width:100vw;height:100vh;object-fit:contain;background:#000";
-    detachedVideo.srcObject = pipStream;
-    pipWindow.document.body.appendChild(detachedVideo);
-  } else {
-    pipFallbackCanvas = pipWindow.document.createElement("canvas");
-    pipFallbackCanvas.width = canvas.width;
-    pipFallbackCanvas.height = canvas.height;
-    pipFallbackCanvas.style.cssText = "display:block;width:100vw;height:100vh;object-fit:contain;background:#000";
-    pipWindow.document.body.appendChild(pipFallbackCanvas);
-  }
-  pipWindow.addEventListener("beforeunload", () => {
-    pipWindow = null;
-    pipFallbackCanvas = null;
-    stopPipRenderer();
-  });
-  await detachedVideo?.play().catch(() => undefined);
+
+  // iOS cannot create a native PiP window from still-image canvas output.
+  // Keep the live player in a same-window dock instead of opening a popup.
+  dockPlayerInWindow();
 }
 
-$("pip-video").addEventListener("leavepictureinpicture", stopPipRenderer);
-$("pip-video").addEventListener("webkitpresentationmodechanged", () => {
-  if ($("pip-video").webkitPresentationMode !== "picture-in-picture") stopPipRenderer();
+function onNativePipClosed(event) {
+  if (pipNativeTarget && event.currentTarget !== pipNativeTarget) return;
+  pipNativeTarget = null;
+  stopPipRenderer();
+}
+
+[$("pip-video"), $("slide-vid")].forEach((video) => {
+  video.addEventListener("leavepictureinpicture", onNativePipClosed);
+  video.addEventListener("webkitpresentationmodechanged", () => {
+    if (video.webkitPresentationMode !== "picture-in-picture") onNativePipClosed({ currentTarget: video });
+  });
 });
 
 let audioCtx = null;
@@ -1896,6 +1951,7 @@ $("pip-btn").onclick = openPip;
 
 async function toggleFullscreen() {
   try {
+    restoreDockedPlayer();
     if (document.fullscreenElement || document.webkitFullscreenElement) {
       const exit = document.exitFullscreen || document.webkitExitFullscreen;
       if (!exit) throw new Error("Fullscreen exit is unavailable.");
@@ -2060,9 +2116,18 @@ $("install-sheet").addEventListener("keydown", (event) => {
 })();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=24").then((reg) => {
-    reg.update();
-  }).catch(() => undefined);
+  navigator.serviceWorker
+    .register("sw.js?v=32", { updateViaCache: "none" })
+    .then(async (reg) => {
+      await reg.update().catch(() => undefined);
+      // Where the installed-PWA platform supports closed-app periodic work,
+      // ask it to revalidate only the same-origin app shell. No user media is
+      // included in this registration or any service-worker request.
+      await reg.periodicSync
+        ?.register("app-shell-update", { minInterval: 6 * 60 * 60 * 1000 })
+        .catch(() => undefined);
+    })
+    .catch(() => undefined);
 }
 
 (function initMatrixRain() {
@@ -2278,6 +2343,14 @@ if ("serviceWorker" in navigator) {
   } catch (err) {
     console.error("Storage restore error:", err);
     setStatus("Some saved media could not be restored from browser storage.");
+  }
+  // Persistent storage reduces the chance that the operating system evicts a
+  // large local library. It is a device-only browser permission and performs
+  // no upload or network transfer.
+  try {
+    await navigator.storage?.persist?.();
+  } catch {
+    /* Persistence is best-effort and unsupported on some Safari versions. */
   }
   renderSetup();
 })();

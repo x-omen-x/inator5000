@@ -1,10 +1,10 @@
-const CACHE = "omens-plapinator-v31";
+const CACHE = "omens-plapinator-v32";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=15",
-  "./app.js?v=17",
+  "./styles.css?v=16",
+  "./app.js?v=18",
   "./fonts.css",
   "./vendor/jszip.min.js",
   "./spurr.m4a",
@@ -24,11 +24,11 @@ const SHELL = [
   "./version.json",
   "./local/perf.js?v=1",
   "./local/live-update.js?v=3",
-  "./local/cloudyplap.js?v=12",
+  "./local/cloudyplap.js?v=13",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=3",
   "./local/five-thousand.css?v=2",
-  "./local/theme.css?v=12",
+  "./local/theme.css?v=13",
   "./local/fonts/title-faces.css?v=5",
   "./local/fonts/bungee.woff2",
   "./local/fonts/bungee-shade.woff2",
@@ -41,7 +41,7 @@ const SHELL = [
   "./local/fonts/creepster.woff2",
   "./local/fonts/ghastly-panic.ttf",
   "./local/assets/mascot-idle.png",
-  "./local/assets/pipe.png",
+  "./local/assets/pipe.png?v=2",
   "./local/assets/smoke-wisp-loop.mp4",
   "./local/assets/smoke-puff.mp4",
   "./local/assets/app-icon.png",
@@ -54,7 +54,14 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
+  // Build a complete new shell before activating it. `reload` bypasses any
+  // stale immutable HTTP entry; a failed download leaves the previous worker
+  // and cache intact instead of installing a partial update.
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" })))),
+  );
   self.skipWaiting();
 });
 
@@ -70,6 +77,9 @@ self.addEventListener("activate", (event) => {
                 key !== CACHE &&
                 APP_CACHE_PREFIXES.some((prefix) => String(key).startsWith(prefix)),
             )
+            // These are app-shell Cache Storage entries only. User photos,
+            // videos and audio live in IndexedDB and are never read or erased
+            // by the service worker update path.
             .map((key) => caches.delete(key)),
         ),
       )
@@ -79,6 +89,18 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+  if (event.data?.type === "CHECK_FOR_UPDATE") {
+    event.waitUntil?.(self.registration.update().catch(() => undefined));
+  }
+});
+
+// Installed Chromium PWAs may wake this worker while the app is closed. iOS
+// does not expose Periodic Background Sync, so it safely falls back to the
+// launch/foreground checks in app.js and live-update.js.
+self.addEventListener("periodicsync", (event) => {
+  if (event.tag === "app-shell-update") {
+    event.waitUntil(self.registration.update().catch(() => undefined));
+  }
 });
 
 async function networkFirst(request, fallback) {

@@ -2,6 +2,12 @@
 body.theme-cloudyplap {
   background: #000 !important;
   background-image: none !important;
+  --tina-pipe-width: min(31vw, 330px);
+  --tina-pipe-right: clamp(1rem, 8vw, 6rem);
+  --tina-pipe-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  /* The smoke origin is the photographed bowl hole at x=74.1%, y=18.2%. */
+  --tina-smoke-right: calc(var(--tina-pipe-right) + min(8.03vw, 85.5px));
+  --tina-smoke-bottom: calc(var(--tina-pipe-bottom) + min(9.49vw, 101px));
 }
 
 body.theme-cloudyplap #intro-glitch,
@@ -37,15 +43,15 @@ body.theme-cloudyplap .sentinel-chitin-bracket {
 
 #theme-smoke-puff {
   position: fixed;
-  left: 85%;
-  bottom: calc(4.7rem + min(25vw, 140px));
-  width: clamp(220px, 30vw, 360px);
+  right: var(--tina-smoke-right);
+  bottom: var(--tina-smoke-bottom);
+  width: clamp(220px, 26vw, 320px);
   aspect-ratio: 360 / 404;
-  transform: translateX(-50%);
+  transform: translateX(50%);
   z-index: 226;
 }
 
-body.theme-cloudyplap.smoke-on #theme-smoke-back,
+body.theme-cloudyplap.smoke-on:not(:has(#player.on)) #theme-smoke-back,
 body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
 #theme-smoke-puff.puffing {
   display: block;
@@ -62,42 +68,44 @@ body.theme-cloudyplap.smoke-on #player.on #reel-smoke,
 
 #theme-smoke-back .smoke-wisp-video {
   position: absolute;
-  left: 85%;
-  bottom: calc(4.7rem + min(25vw, 140px));
-  width: clamp(240px, 32vw, 360px);
+  right: var(--tina-smoke-right);
+  bottom: var(--tina-smoke-bottom);
+  width: clamp(260px, 34vw, 380px);
   height: auto;
   aspect-ratio: 2 / 3;
-  transform: translateX(-50%);
-  opacity: 0.4;
-  filter: contrast(1.16) brightness(1.24) blur(0.2px);
+  transform: translateX(50%);
+  opacity: 0.72;
+  filter: contrast(1.2) brightness(1.38) blur(0.15px);
 }
 
 #reel-smoke .smoke-wisp-video {
   position: absolute;
-  left: 85%;
-  bottom: calc(4.7rem + min(25vw, 140px));
-  width: clamp(260px, 36vw, 400px);
+  right: var(--tina-smoke-right);
+  bottom: var(--tina-smoke-bottom);
+  width: clamp(270px, 36vw, 400px);
   height: auto;
   aspect-ratio: 2 / 3;
-  transform: translateX(-50%);
-  opacity: 0.38;
-  filter: contrast(1.14) brightness(1.2) blur(0.2px);
+  transform: translateX(50%);
+  opacity: 0.66;
+  filter: contrast(1.18) brightness(1.32) blur(0.15px);
 }
 
 #theme-smoke-puff .smoke-wisp-video {
-  opacity: 0.44;
-  filter: contrast(1.05) brightness(1.05) blur(0.35px);
-  -webkit-mask-image: radial-gradient(ellipse 46% 42% at 50% 68%, #000 0%, #000 38%, rgba(0, 0, 0, 0.74) 56%, transparent 100%);
-  mask-image: radial-gradient(ellipse 46% 42% at 50% 68%, #000 0%, #000 38%, rgba(0, 0, 0, 0.74) 56%, transparent 100%);
+  opacity: 0.68;
+  filter: contrast(1.12) brightness(1.22) blur(0.3px);
+  /* Every edge reaches fully transparent; the old mask left the lower centre
+     partly opaque, which exposed the video rectangle during a bright puff. */
+  -webkit-mask-image: radial-gradient(ellipse 48% 31% at 50% 69%, #000 0%, #000 40%, rgba(0, 0, 0, 0.78) 58%, transparent 100%);
+  mask-image: radial-gradient(ellipse 48% 31% at 50% 69%, #000 0%, #000 40%, rgba(0, 0, 0, 0.78) 58%, transparent 100%);
 }
 
 #tina-pipe {
   display: none;
   position: fixed;
-  right: clamp(1rem, 10vw, 8rem);
-  bottom: calc(4.7rem + env(safe-area-inset-bottom, 0px));
+  right: var(--tina-pipe-right);
+  bottom: var(--tina-pipe-bottom);
   z-index: 55;
-  width: min(38vw, 380px);
+  width: var(--tina-pipe-width);
   height: auto;
   padding: 0;
   border: 0;
@@ -117,7 +125,14 @@ body:has(#player.on) #tina-pipe {
   z-index: 225;
 }
 
+body:has(#player.pip-docked) #tina-pipe,
+#player.pip-docked #reel-smoke {
+  display: none !important;
+}
+
 #tina-pipe img {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: auto;
@@ -146,15 +161,21 @@ body:has(#player.on) #tina-pipe {
 }
 
 @media (max-width: 680px) {
-  #theme-smoke-puff,
-  #theme-smoke-back .smoke-wisp-video,
-  #reel-smoke .smoke-wisp-video {
-    left: 80%;
+  body.theme-cloudyplap {
+    --tina-pipe-width: min(62vw, 280px);
+    --tina-pipe-right: clamp(0.7rem, 3vw, 1.25rem);
+    --tina-pipe-bottom: calc(4.8rem + env(safe-area-inset-bottom, 0px));
+    --tina-smoke-right: calc(var(--tina-pipe-right) + min(16.06vw, 72.5px));
+    --tina-smoke-bottom: calc(var(--tina-pipe-bottom) + min(18.97vw, 85.7px));
   }
 
-  #tina-pipe {
-    right: 4vw;
-    width: min(72vw, 330px);
+  #theme-smoke-puff {
+    width: min(76vw, 300px);
+  }
+
+  #theme-smoke-back .smoke-wisp-video,
+  #reel-smoke .smoke-wisp-video {
+    width: min(74vw, 310px);
   }
 }
 
@@ -477,7 +498,7 @@ body.theme-cloudyplap .dock.sentinel-dock {
     animation: none !important;
   }
 
-  .smoke-wisp-video {
-    display: none !important;
+  #tina-pipe.puffing {
+    animation: none !important;
   }
 }

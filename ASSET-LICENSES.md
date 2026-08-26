@@ -16,9 +16,10 @@ No generative AI was used to create or edit the TINA MODE assets.
 
 ## Pipe
 
-- `local/assets/pipe.png` was manually cut out and color-adjusted from the image
-  supplied by the project owner. Its visible pixels come from that attachment;
-  no synthesized fill, generative edit, or generated imagery was used.
+- `local/assets/pipe.png` was manually cut out, color-adjusted, edge-cleaned,
+  and given an intentionally rounded mouthpiece from the image supplied by the
+  project owner. Its visible pixels come from that attachment; no synthesized
+  fill, generative edit, or generated imagery was used.
 
 ## Mascot
 

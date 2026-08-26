@@ -1183,6 +1183,57 @@ label.block {
   display: block;
 }
 
+/* Single-window PiP fallback for iOS still-image slides. Real video slides use
+   WebKit's native PiP; this dock replaces the old popup-window fallback. */
+#player.on.pip-docked {
+  inset: auto max(0.8rem, env(safe-area-inset-right)) max(5.4rem, calc(4.6rem + env(safe-area-inset-bottom))) auto;
+  width: min(44vw, 430px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border: 1px solid rgba(57, 255, 106, 0.72);
+  border-radius: 0.7rem;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.82), 0 0 22px rgba(57, 255, 106, 0.18);
+  contain: layout paint style;
+}
+
+#player.pip-docked .slide-still,
+#player.pip-docked .slide-vid,
+#player.pip-docked #overlay-vid {
+  height: 100%;
+}
+
+#player.pip-docked .shade,
+#player.pip-docked .phud-meta-wrap {
+  display: none;
+}
+
+#player.pip-docked .phud {
+  justify-content: flex-end;
+  padding: 0.35rem;
+}
+
+#player.pip-docked .phud .btn {
+  min-height: 2rem;
+  width: 2rem;
+  padding: 0;
+}
+
+#player.pip-docked .pctl {
+  inset: auto 0.35rem 0.35rem auto;
+  justify-content: flex-end;
+  width: auto;
+  padding: 0;
+}
+
+#player.pip-docked .pctl > :not(#pip-btn) {
+  display: none !important;
+}
+
+#player.pip-docked #pip-btn {
+  display: inline-flex;
+  background: rgba(0, 18, 5, 0.9);
+}
+
 #setup.hid {
   display: none;
 }
@@ -1560,6 +1611,12 @@ label.block {
 }
 
 @media (max-width: 640px) {
+  #player.on.pip-docked {
+    right: max(0.55rem, env(safe-area-inset-right));
+    bottom: max(5.2rem, calc(4.5rem + env(safe-area-inset-bottom)));
+    width: min(92vw, 390px);
+  }
+
   .pctl .btn.icon {
     width: 2.35rem;
     min-height: 2.35rem;

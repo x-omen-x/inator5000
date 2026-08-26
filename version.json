@@ -1,7 +1,7 @@
 {
-  "build": "2026-08-25-8",
-  "note": "TINA MODE rebuilt with real seamless smoke, the supplied pipe, and verified mascot art",
-  "reload": false,
+  "build": "2026-08-26-1",
+  "note": "Private shell updates, corrected TINA smoke, and same-window mobile PiP",
+  "reload": true,
   "css": [
     "styles.css",
     "local/five-thousand.css"
