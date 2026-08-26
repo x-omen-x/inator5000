@@ -322,10 +322,15 @@ function renderSetup() {
   $("video-preview-wrap").classList.toggle("hid", !state.overlayUrl);
   if (state.overlayUrl) {
     const v = $("video-preview");
-    if (v.src !== state.overlayPreviewUrl) v.src = state.overlayPreviewUrl;
+    if (v.src !== state.overlayPreviewUrl) {
+      v.src = state.overlayPreviewUrl;
+      v.load();
+    }
     v.loop = true;
     v.muted = true;
-    v.play().catch(() => undefined);
+    const playPreview = () => v.play().catch(() => undefined);
+    if (v.readyState >= 2) playPreview();
+    else v.addEventListener("canplay", playPreview, { once: true });
     v.style.opacity = String(1 - state.transparency / 100);
     v.style.mixBlendMode = state.blend;
     $("video-name").textContent = state.overlayName || "";
@@ -1066,10 +1071,25 @@ function nextTrack() {
 
 $("local-audio").addEventListener("ended", nextTrack);
 
+let overlayPlayToken = 0;
+
+function playOverlayWhenReady(video) {
+  const token = ++overlayPlayToken;
+  const attempt = () => {
+    if (token !== overlayPlayToken || !overlayShouldPlay()) return;
+    video.play().catch(() => undefined);
+  };
+  if (video.readyState >= 2) attempt();
+  else video.addEventListener("canplay", attempt, { once: true });
+}
+
 function syncMedia() {
   const video = $("overlay-vid");
   if (state.overlayUrl) {
-    if (video.src !== state.overlayUrl) video.src = state.overlayUrl;
+    if (video.src !== state.overlayUrl) {
+      video.src = state.overlayUrl;
+      video.load();
+    }
     video.loop = state.overlayLoop;
     setMixVolume(video, state.overlayVolume / 100, state.overlayVolume === 0);
     video.style.opacity = String(1 - state.transparency / 100);
@@ -1079,10 +1099,12 @@ function syncMedia() {
       if (video.ended && state.overlayLoop) {
         try { video.currentTime = 0; } catch { /* metadata is still loading */ }
       }
-      video.play().catch(() => undefined);
+      playOverlayWhenReady(video);
     } else video.pause();
   } else {
+    overlayPlayToken++;
     video.removeAttribute("src");
+    video.load();
     video.style.display = "none";
   }
 
@@ -1142,7 +1164,7 @@ function scheduleOverlayRecovery() {
     if (video.ended && state.overlayLoop) {
       try { video.currentTime = 0; } catch { /* metadata is still loading */ }
     }
-    video.play().catch(() => undefined);
+    playOverlayWhenReady(video);
   }, 900);
 }
 
@@ -1150,7 +1172,7 @@ const overlayVideo = $("overlay-vid");
 overlayVideo.addEventListener("ended", () => {
   if (!state.overlayLoop || !overlayShouldPlay()) return;
   try { overlayVideo.currentTime = 0; } catch { /* metadata is still loading */ }
-  overlayVideo.play().catch(() => undefined);
+  playOverlayWhenReady(overlayVideo);
 });
 overlayVideo.addEventListener("stalled", scheduleOverlayRecovery);
 overlayVideo.addEventListener("waiting", scheduleOverlayRecovery);
@@ -1510,7 +1532,7 @@ function ensureAudioGraph() {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     resumeAudioCtx();
-    if (overlayShouldPlay()) $("overlay-vid").play().catch(() => undefined);
+    if (overlayShouldPlay()) playOverlayWhenReady($("overlay-vid"));
   }
 });
 for (const evt of ["pointerdown", "touchend", "keydown"]) {
@@ -1885,7 +1907,7 @@ $("overlay-loop").onchange = (e) => {
   video.loop = state.overlayLoop;
   if (state.overlayLoop && overlayShouldPlay() && video.ended) {
     try { video.currentTime = 0; } catch { /* metadata is still loading */ }
-    video.play().catch(() => undefined);
+    playOverlayWhenReady(video);
   }
 };
 $("shuffle").onchange = (e) => {

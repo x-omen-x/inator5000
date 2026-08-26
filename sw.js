@@ -1,10 +1,10 @@
-const CACHE = "omens-plapinator-v38";
+const CACHE = "omens-plapinator-v39";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=18",
-  "./app.js?v=24",
+  "./app.js?v=25",
   "./fonts.css",
   "./vendor/jszip.min.js",
   "./spurr.m4a",
