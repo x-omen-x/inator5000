@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-26-9",
-  "note": "brighter seamless TINA smoke, edge-safe puff and sustained overlay playback",
+  "build": "2026-08-26-10",
+  "note": "brighter seamless TINA smoke, edge-safe puff and silent decoder recovery",
   "reload": true,
   "css": [
     "styles.css",

@@ -1181,10 +1181,17 @@ function watchOverlayProgress() {
     (video.readyState >= 2 && overlayWatchTime >= 0 && Math.abs(now - overlayWatchTime) < 0.04));
   overlayWatchMisses = stopped ? overlayWatchMisses + 1 : 0;
   if (overlayWatchMisses >= 2) {
+    video.pause();
     if (video.ended && state.overlayLoop) {
       try { video.currentTime = 0; } catch { /* metadata is still loading */ }
+    } else if (video.readyState >= 2) {
+      const duration = video.duration;
+      const restartAt = Number.isFinite(duration) && now + 0.06 >= duration
+        ? (state.overlayLoop ? 0 : Math.max(0, duration - 0.06))
+        : now + 0.06;
+      try { video.currentTime = restartAt; } catch { /* metadata is still loading */ }
     }
-    playOverlayWhenReady(video);
+    video.play().catch(() => undefined);
     overlayWatchMisses = 0;
   }
   overlayWatchTime = video.currentTime;

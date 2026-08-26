@@ -429,8 +429,14 @@
       (ambientVideo.readyState >= 2 && smokeWatchTime >= 0 && Math.abs(now - smokeWatchTime) < 0.03);
     smokeWatchMisses = stopped ? smokeWatchMisses + 1 : 0;
     if (smokeWatchMisses >= 2) {
-      if (ambientVideo.ended && Number.isFinite(ambientVideo.duration)) {
-        try { ambientVideo.currentTime = 0; } catch { /* metadata can still be settling */ }
+      // Chromium and WebKit can leave a decorative video in a false-playing
+      // state (paused=false, readyState=4) while its decoder is parked. A tiny
+      // forward seek restarts that decoder without a visible jump in this slow
+      // footage; crossing the end restarts the circularly matched loop.
+      ambientVideo.pause();
+      if (Number.isFinite(ambientVideo.duration)) {
+        const restartAt = now + 0.06 < ambientVideo.duration ? now + 0.06 : 0;
+        try { ambientVideo.currentTime = restartAt; } catch { /* metadata can still be settling */ }
       }
       ambientVideo.play().catch(() => undefined);
       stopSmokeRenderer();
