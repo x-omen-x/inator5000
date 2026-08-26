@@ -1280,9 +1280,14 @@ function setPipButtonLabel(label) {
 
 function supportsNativePip(video) {
   if (!video) return false;
-  if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") return true;
+  if (
+    typeof video.requestPictureInPicture === "function" &&
+    document.pictureInPictureEnabled !== false
+  ) return true;
   try {
-    return Boolean(video.webkitSupportsPresentationMode?.("picture-in-picture"));
+    if (typeof video.webkitSetPresentationMode !== "function") return false;
+    return typeof video.webkitSupportsPresentationMode !== "function" ||
+      Boolean(video.webkitSupportsPresentationMode("picture-in-picture"));
   } catch {
     return false;
   }
@@ -1294,9 +1299,16 @@ async function requestNativePip(video) {
   video.defaultMuted = true;
   video.playsInline = true;
   await video.play();
-  if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") {
+  if (
+    typeof video.requestPictureInPicture === "function" &&
+    document.pictureInPictureEnabled !== false
+  ) {
     await video.requestPictureInPicture();
-  } else if (video.webkitSupportsPresentationMode?.("picture-in-picture")) {
+  } else if (
+    typeof video.webkitSetPresentationMode === "function" &&
+    (typeof video.webkitSupportsPresentationMode !== "function" ||
+      video.webkitSupportsPresentationMode("picture-in-picture"))
+  ) {
     video.webkitSetPresentationMode("picture-in-picture");
   } else {
     throw new Error("Native PiP unavailable");
