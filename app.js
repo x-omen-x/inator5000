@@ -1953,7 +1953,6 @@ $("pip-btn").onclick = openPip;
 
 async function toggleFullscreen() {
   try {
-    restoreDockedPlayer();
     if (document.fullscreenElement || document.webkitFullscreenElement) {
       const exit = document.exitFullscreen || document.webkitExitFullscreen;
       if (!exit) throw new Error("Fullscreen exit is unavailable.");
