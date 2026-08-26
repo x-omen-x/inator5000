@@ -322,6 +322,9 @@ function renderSetup() {
   if (state.overlayUrl) {
     const v = $("video-preview");
     if (v.src !== state.overlayUrl) v.src = state.overlayUrl;
+    v.loop = true;
+    v.muted = true;
+    v.play().catch(() => undefined);
     v.style.opacity = String(1 - state.transparency / 100);
     v.style.mixBlendMode = state.blend;
     $("video-name").textContent = state.overlayName || "";
@@ -418,6 +421,18 @@ function renderSetup() {
   renderAlbums();
   renderThumbs();
   renderTracks();
+}
+
+// iOS has a much tighter hardware-decoder budget than desktop browsers. The
+// setup preview and slideshow overlay used to decode the same local Blob in
+// parallel even though the preview was hidden. Releasing the hidden preview is
+// important: merely pausing it can leave its decoder allocated in WebKit.
+function releaseOverlayPreview() {
+  const preview = $("video-preview");
+  if (!preview) return;
+  preview.pause();
+  preview.removeAttribute("src");
+  preview.load();
 }
 
 async function persistSlide(row) {
@@ -1057,8 +1072,12 @@ function syncMedia() {
     video.style.opacity = String(1 - state.transparency / 100);
     video.style.mixBlendMode = state.blend;
     video.style.display = "block";
-    if (state.playing) video.play().catch(() => undefined);
-    else video.pause();
+    if (state.playing) {
+      if (video.ended && state.overlayLoop) {
+        try { video.currentTime = 0; } catch { /* metadata is still loading */ }
+      }
+      video.play().catch(() => undefined);
+    } else video.pause();
   } else {
     video.removeAttribute("src");
     video.style.display = "none";
@@ -1101,6 +1120,39 @@ function syncMedia() {
   syncSlideVideoAudio();
 }
 
+let overlayRecoveryTimer = 0;
+
+function overlayShouldPlay() {
+  return Boolean(state.playing && state.overlayUrl && $("player").classList.contains("on") && !document.hidden);
+}
+
+function scheduleOverlayRecovery() {
+  window.clearTimeout(overlayRecoveryTimer);
+  const video = $("overlay-vid");
+  const stalledAt = video.currentTime;
+  overlayRecoveryTimer = window.setTimeout(() => {
+    if (!overlayShouldPlay()) return;
+    // Ignore normal buffering events that resolved on their own. If WebKit is
+    // still parked on the same frame, retry playback without allocating a
+    // second media element or Blob URL.
+    if (!video.ended && Math.abs(video.currentTime - stalledAt) > 0.04) return;
+    if (video.ended && state.overlayLoop) {
+      try { video.currentTime = 0; } catch { /* metadata is still loading */ }
+    }
+    video.play().catch(() => undefined);
+  }, 900);
+}
+
+const overlayVideo = $("overlay-vid");
+overlayVideo.addEventListener("ended", () => {
+  if (!state.overlayLoop || !overlayShouldPlay()) return;
+  try { overlayVideo.currentTime = 0; } catch { /* metadata is still loading */ }
+  overlayVideo.play().catch(() => undefined);
+});
+overlayVideo.addEventListener("stalled", scheduleOverlayRecovery);
+overlayVideo.addEventListener("waiting", scheduleOverlayRecovery);
+overlayVideo.addEventListener("playing", () => window.clearTimeout(overlayRecoveryTimer));
+
 function loadSc() {
   if (window.SC?.Widget) return Promise.resolve(window.SC);
   return new Promise((resolve, reject) => {
@@ -1141,6 +1193,7 @@ function enterPlayer() {
   $("toggle-btn").textContent = "Pause";
   $("toggle-btn").setAttribute("aria-label", "Pause");
   $("toggle-btn").setAttribute("aria-pressed", "true");
+  releaseOverlayPreview();
   ensureAudioGraph();
   showSlide();
   syncMedia();
@@ -1214,7 +1267,7 @@ function currentVisual() {
   return visibleStill();
 }
 
-const PIP_FRAME_MS = 1000 / 30;
+const PIP_FRAME_MS = 1000 / 24;
 let pipLastFrame = 0;
 
 function renderPipFrame(ts) {
@@ -1251,7 +1304,7 @@ function captureCanvasStream(canvas) {
   const capture = canvas?.captureStream || canvas?.webkitCaptureStream;
   if (typeof capture !== "function") return null;
   try {
-    return capture.call(canvas, 30);
+    return capture.call(canvas, 24);
   } catch {
     try {
       return capture.call(canvas);
@@ -1285,12 +1338,31 @@ function supportsNativePip(video) {
     document.pictureInPictureEnabled !== false
   ) return true;
   try {
-    if (typeof video.webkitSetPresentationMode !== "function") return false;
-    return typeof video.webkitSupportsPresentationMode !== "function" ||
-      Boolean(video.webkitSupportsPresentationMode("picture-in-picture"));
+    // WebKit can report false until the video has a source and loaded metadata.
+    // This function is deliberately an API-presence check; requestNativePip
+    // performs the capability check after the composed stream is playable.
+    return typeof video.webkitSetPresentationMode === "function";
   } catch {
     return false;
   }
+}
+
+function waitForPipVideo(video, timeout = 2500) {
+  if (video.readyState >= 1) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => done(new Error("PiP video did not become ready")), timeout);
+    const done = (error) => {
+      window.clearTimeout(timer);
+      video.removeEventListener("loadedmetadata", onReady);
+      video.removeEventListener("error", onError);
+      if (error) reject(error);
+      else resolve();
+    };
+    const onReady = () => done();
+    const onError = () => done(video.error || new Error("PiP video failed"));
+    video.addEventListener("loadedmetadata", onReady, { once: true });
+    video.addEventListener("error", onError, { once: true });
+  });
 }
 
 async function requestNativePip(video) {
@@ -1333,6 +1405,7 @@ async function openPip() {
     }
     video.srcObject = pipStream;
     try {
+      await waitForPipVideo(video);
       await requestNativePip(video);
       setStatus("Native Picture in Picture is active.");
       return;
@@ -1432,7 +1505,10 @@ function ensureAudioGraph() {
 // iOS suspends the context on interruptions (calls, route changes, backgrounding)
 // and only lets it come back on a gesture or when the page is visible again.
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) resumeAudioCtx();
+  if (!document.hidden) {
+    resumeAudioCtx();
+    if (overlayShouldPlay()) $("overlay-vid").play().catch(() => undefined);
+  }
 });
 for (const evt of ["pointerdown", "touchend", "keydown"]) {
   document.addEventListener(evt, resumeAudioCtx, { passive: true });
@@ -1800,6 +1876,12 @@ $("zoom").oninput = (e) => {
 $("overlay-loop").onchange = (e) => {
   state.overlayLoop = e.target.checked;
   writeSettings({ overlayLoop: state.overlayLoop });
+  const video = $("overlay-vid");
+  video.loop = state.overlayLoop;
+  if (state.overlayLoop && overlayShouldPlay() && video.ended) {
+    try { video.currentTime = 0; } catch { /* metadata is still loading */ }
+    video.play().catch(() => undefined);
+  }
 };
 $("shuffle").onchange = (e) => {
   state.shuffle = e.target.checked;

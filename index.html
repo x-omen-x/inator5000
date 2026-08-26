@@ -123,7 +123,7 @@
           </div>
           <div class="drop" id="video-drop">Drop a video here</div>
           <div class="preview hid" id="video-preview-wrap">
-            <video id="video-preview" muted loop playsinline autoplay></video>
+            <video id="video-preview" muted loop playsinline preload="metadata"></video>
             <p class="fname" id="video-name"></p>
           </div>
           <label class="slider">Transparency <span><b id="tr-val">35</b>%</span><input id="transparency" type="range" min="0" max="100" value="35" /></label>
@@ -239,7 +239,7 @@
       <img id="still-b" class="slide-still" alt="" />
       <img id="still" class="slide-still ghost-still" alt="" />
       <video id="slide-vid" class="slide-vid" playsinline></video>
-      <video id="overlay-vid" playsinline></video>
+      <video id="overlay-vid" playsinline webkit-playsinline preload="auto"></video>
       <audio id="local-audio"></audio>
       <iframe id="sc-frame" class="hid" title="SoundCloud" allow="autoplay"></iframe>
       <canvas id="pip-canvas" width="1280" height="720" aria-hidden="true"></canvas>
@@ -300,10 +300,10 @@
     <!-- The app-shell update check runs once at launch. Open pages remain on
          their current build until the user refreshes them. -->
     <script src="local/perf.js?v=1"></script>
-    <script src="local/live-update.js?v=4" data-build="2026-08-26-5"></script>
+    <script src="local/live-update.js?v=4" data-build="2026-08-26-6"></script>
     <script src="local/cloudyplap.js?v=14"></script>
     <script src="vendor/jszip.min.js"></script>
-    <script src="app.js?v=22"></script>
+    <script src="app.js?v=23"></script>
     <script src="local/splat.js?v=1"></script>
     <script src="local/five-thousand.js?v=3"></script>
   </body>
