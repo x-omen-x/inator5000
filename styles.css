@@ -21,6 +21,12 @@
   --display: "Orbitron", "Share Tech Mono", sans-serif;
 }
 
+html {
+  /* Prevent the fixed TINA pipe from shifting by the scrollbar width when the
+     setup page hands off to the full-window slideshow. */
+  scrollbar-gutter: stable;
+}
+
 * {
   box-sizing: border-box;
   border-color: var(--border);

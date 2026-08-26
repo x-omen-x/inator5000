@@ -1299,12 +1299,13 @@ async function requestNativePip(video) {
 
 async function openPip() {
   if (restoreDockedPlayer()) return;
+  const forceSameWindowDock = new URLSearchParams(location.search).get("pip") === "dock";
 
   // iOS exposes real system PiP for a real HTMLVideoElement. Use the current
   // video slide directly instead of routing it through a canvas MediaStream,
   // which mobile Safari cannot present in PiP.
   const source = currentVisual();
-  if (source?.tagName === "VIDEO" && supportsNativePip(source)) {
+  if (!forceSameWindowDock && source?.tagName === "VIDEO" && supportsNativePip(source)) {
     try {
       await requestNativePip(source);
       setStatus("Native Picture in Picture is active.");
@@ -1319,7 +1320,7 @@ async function openPip() {
   // slideshow as a native PiP video. The frames never leave this page.
   const canvas = $("pip-canvas");
   const video = $("pip-video");
-  if (canvas.captureStream && supportsNativePip(video)) {
+  if (!forceSameWindowDock && canvas.captureStream && supportsNativePip(video)) {
     startPipRenderer();
     pipStream = canvas.captureStream(24);
     video.srcObject = pipStream;
@@ -2117,7 +2118,7 @@ $("install-sheet").addEventListener("keydown", (event) => {
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
-    .register("sw.js?v=32", { updateViaCache: "none" })
+    .register("sw.js?v=33", { updateViaCache: "none" })
     .then(async (reg) => {
       await reg.update().catch(() => undefined);
       // Where the installed-PWA platform supports closed-app periodic work,

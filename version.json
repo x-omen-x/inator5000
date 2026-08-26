@@ -1,5 +1,5 @@
 {
-  "build": "2026-08-26-1",
+  "build": "2026-08-26-2",
   "note": "Private shell updates, corrected TINA smoke, and same-window mobile PiP",
   "reload": true,
   "css": [
