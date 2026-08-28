@@ -693,9 +693,6 @@ let playRaf = 0;
 let nextAt = 0;
 let hideTimer = 0;
 let scWidget = null;
-let pipStream = null;
-let pipFrame = 0;
-let pipNativeTarget = null;
 let videoHold = false;
 let frontStill = "a";
 const decoded = new Map();
@@ -1274,7 +1271,6 @@ function enterPlayer() {
   applyCrossfade();
   $("setup").classList.add("hid");
   $("player").classList.add("on");
-  setPipButtonLabel("Picture in Picture");
   $("toggle-btn").textContent = "Pause";
   $("toggle-btn").setAttribute("aria-label", "Pause");
   $("toggle-btn").setAttribute("aria-pressed", "true");
@@ -1288,16 +1284,6 @@ function enterPlayer() {
 
 function exitPlayer() {
   if (state.recording) stopRecording();
-  document.exitPictureInPicture?.().catch?.(() => undefined);
-  try {
-    if (pipNativeTarget?.webkitPresentationMode === "picture-in-picture") {
-      pipNativeTarget.webkitSetPresentationMode("inline");
-    }
-  } catch {
-    /* PiP was already closed by the browser. */
-  }
-  pipNativeTarget = null;
-  stopPipRenderer();
   state.playing = false;
   rainPaused = false;
   window.dispatchEvent(new Event("flashreel:rain"));
@@ -1308,7 +1294,6 @@ function exitPlayer() {
   $("local-audio").pause();
   scWidget?.pause();
   $("player").classList.remove("on");
-  setPipButtonLabel("Picture in Picture");
   $("setup").classList.remove("hid");
   syncSlideVideoAudio();
   renderSetup();
@@ -1332,7 +1317,7 @@ function togglePlay() {
   bumpChrome();
 }
 
-function drawPipSource(ctx, source, fit, zoom = 1) {
+function drawRecordSource(ctx, source, fit, zoom = 1) {
   const sourceWidth = source.videoWidth || source.naturalWidth;
   const sourceHeight = source.videoHeight || source.naturalHeight;
   if (!sourceWidth || !sourceHeight) return;
@@ -1352,168 +1337,42 @@ function currentVisual() {
   return visibleStill();
 }
 
-const PIP_FRAME_MS = 1000 / 24;
-let pipLastFrame = 0;
+const RECORD_FRAME_MS = 1000 / 24;
+let recordFrame = 0;
+let recordLastFrame = 0;
 
-function renderPipFrame(ts) {
-  pipFrame = requestAnimationFrame(renderPipFrame);
+function renderRecordFrame(ts) {
+  recordFrame = requestAnimationFrame(renderRecordFrame);
   const now = typeof ts === "number" ? ts : 0;
-  if (now - pipLastFrame < PIP_FRAME_MS) return;
-  pipLastFrame = now;
-  const canvas = $("pip-canvas");
+  if (now - recordLastFrame < RECORD_FRAME_MS) return;
+  recordLastFrame = now;
+  const canvas = $("record-canvas");
   const ctx = canvas.getContext("2d", { alpha: false });
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const vis = currentVisual();
-  if (vis && (vis.complete || vis.readyState >= 2)) drawPipSource(ctx, vis, state.fit, state.zoom);
+  if (vis && (vis.complete || vis.readyState >= 2)) drawRecordSource(ctx, vis, state.fit, state.zoom);
   const overlay = $("overlay-vid");
   if (state.overlayUrl && overlay.readyState >= 2) {
     ctx.save();
     ctx.globalAlpha = 1 - state.transparency / 100;
     ctx.globalCompositeOperation = state.blend === "plus-lighter" ? "lighter" : state.blend;
-    drawPipSource(ctx, overlay, "cover");
+    drawRecordSource(ctx, overlay, "cover");
     ctx.restore();
   }
-  // TINA exposes the same local smoke frame to the compositor. This keeps the
-  // native PiP window visually consistent without adding another decoder.
-  window.__tinaSmokePip?.draw?.(ctx, canvas);
+  window.__tinaSmokeRecord?.draw?.(ctx, canvas);
 }
-function startPipRenderer() {
-  if (!pipFrame) {
-    pipLastFrame = 0;
-    renderPipFrame();
+function startRecordRenderer() {
+  if (!recordFrame) {
+    recordLastFrame = 0;
+    renderRecordFrame();
   }
 }
 
-function captureCanvasStream(canvas) {
-  const capture = canvas?.captureStream || canvas?.webkitCaptureStream;
-  if (typeof capture !== "function") return null;
-  try {
-    return capture.call(canvas, 24);
-  } catch {
-    try {
-      return capture.call(canvas);
-    } catch {
-      return null;
-    }
-  }
+function stopRecordRenderer() {
+  cancelAnimationFrame(recordFrame);
+  recordFrame = 0;
 }
-
-function stopPipRenderer() {
-  if (state.recording) return;
-  cancelAnimationFrame(pipFrame);
-  pipFrame = 0;
-  pipStream?.getTracks?.().forEach((track) => track.stop());
-  pipStream = null;
-  const video = $("pip-video");
-  video.pause();
-  if (video.srcObject) video.srcObject = null;
-}
-
-function setPipButtonLabel(label) {
-  const button = $("pip-btn");
-  button.setAttribute("aria-label", label);
-  button.title = label;
-}
-
-function supportsNativePip(video) {
-  if (!video) return false;
-  if (
-    typeof video.requestPictureInPicture === "function" &&
-    document.pictureInPictureEnabled !== false
-  ) return true;
-  try {
-    // WebKit can report false until the video has a source and loaded metadata.
-    // This function is deliberately an API-presence check; requestNativePip
-    // performs the capability check after the composed stream is playable.
-    return typeof video.webkitSetPresentationMode === "function";
-  } catch {
-    return false;
-  }
-}
-
-function waitForPipVideo(video, timeout = 2500) {
-  if (video.readyState >= 1) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => done(new Error("PiP video did not become ready")), timeout);
-    const done = (error) => {
-      window.clearTimeout(timer);
-      video.removeEventListener("loadedmetadata", onReady);
-      video.removeEventListener("error", onError);
-      if (error) reject(error);
-      else resolve();
-    };
-    const onReady = () => done();
-    const onError = () => done(video.error || new Error("PiP video failed"));
-    video.addEventListener("loadedmetadata", onReady, { once: true });
-    video.addEventListener("error", onError, { once: true });
-  });
-}
-
-async function requestNativePip(video) {
-  if (!video) throw new Error("PiP video unavailable");
-  video.muted = true;
-  video.defaultMuted = true;
-  video.playsInline = true;
-  await video.play();
-  if (
-    typeof video.requestPictureInPicture === "function" &&
-    document.pictureInPictureEnabled !== false
-  ) {
-    await video.requestPictureInPicture();
-  } else if (
-    typeof video.webkitSetPresentationMode === "function" &&
-    (typeof video.webkitSupportsPresentationMode !== "function" ||
-      video.webkitSupportsPresentationMode("picture-in-picture"))
-  ) {
-    video.webkitSetPresentationMode("picture-in-picture");
-  } else {
-    throw new Error("Native PiP unavailable");
-  }
-  pipNativeTarget = video;
-}
-
-async function openPip() {
-  // Always use one composed video surface. This keeps image slides, video
-  // slides, fit/zoom, and the local overlay in the same native PiP window on
-  // every browser that supports canvas capture streams, including WebKit's
-  // iOS presentation-mode API where available.
-  const canvas = $("pip-canvas");
-  const video = $("pip-video");
-  if (supportsNativePip(video)) {
-    startPipRenderer();
-    pipStream = captureCanvasStream(canvas);
-    if (!pipStream) {
-      stopPipRenderer();
-      setStatus("Native Picture in Picture is unavailable in this browser.");
-      return;
-    }
-    video.srcObject = pipStream;
-    try {
-      await waitForPipVideo(video);
-      await requestNativePip(video);
-      setStatus("Native Picture in Picture is active.");
-      return;
-    } catch {
-      pipNativeTarget = null;
-      stopPipRenderer();
-    }
-  }
-  setStatus("Native Picture in Picture is unavailable in this browser.");
-}
-
-function onNativePipClosed(event) {
-  if (pipNativeTarget && event.currentTarget !== pipNativeTarget) return;
-  pipNativeTarget = null;
-  stopPipRenderer();
-}
-
-[$("pip-video"), $("slide-vid")].forEach((video) => {
-  video.addEventListener("leavepictureinpicture", onNativePipClosed);
-  video.addEventListener("webkitpresentationmodechanged", () => {
-    if (video.webkitPresentationMode !== "picture-in-picture") onNativePipClosed({ currentTarget: video });
-  });
-});
 
 let audioCtx = null;
 let recDest = null;
@@ -1660,11 +1519,11 @@ async function startRecording() {
   await waitForCurrentVisual();
   ensureAudioGraph();
   await audioCtx?.resume?.().catch(() => undefined);
-  startPipRenderer();
+  startRecordRenderer();
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  const canvas = $("pip-canvas");
+  const canvas = $("record-canvas");
   if (!canvas.captureStream) {
-    stopPipRenderer();
+    stopRecordRenderer();
     setStatus("This browser cannot record the player canvas.");
     return;
   }
@@ -1680,7 +1539,7 @@ async function startRecording() {
   } catch (err) {
     recStream.getTracks().forEach((track) => track.stop());
     recStream = null;
-    stopPipRenderer();
+    stopRecordRenderer();
     setStatus("Recorder failed: " + (err.message || err));
     return;
   }
@@ -1704,7 +1563,7 @@ async function startRecording() {
     recStream?.getTracks().forEach((track) => track.stop());
     recStream = null;
     setRecUi(false);
-    stopPipRenderer();
+    stopRecordRenderer();
     mediaRecorder = null;
   };
   try {
@@ -1714,7 +1573,7 @@ async function startRecording() {
   } catch (err) {
     recStream.getTracks().forEach((track) => track.stop());
     recStream = null;
-    stopPipRenderer();
+    stopRecordRenderer();
     setStatus("Recorder could not start: " + (err.message || err));
   }
 }
@@ -1727,14 +1586,14 @@ function stopRecording() {
       recStream?.getTracks().forEach((track) => track.stop());
       recStream = null;
       setRecUi(false);
-      stopPipRenderer();
+      stopRecordRenderer();
       setStatus("Recording could not be finalized: " + (err.message || err));
     }
   } else {
     recStream?.getTracks().forEach((track) => track.stop());
     recStream = null;
     setRecUi(false);
-    stopPipRenderer();
+    stopRecordRenderer();
   }
 }
 
@@ -2130,8 +1989,6 @@ $("main-slide-video-volume").oninput = (event) => {
   $("main-slide-video-volume-value").textContent = String(Math.round(state.slideVideoVolume));
   syncSlideVideoAudio();
 };
-$("pip-btn").onclick = openPip;
-
 async function toggleFullscreen() {
   try {
     if (document.fullscreenElement || document.webkitFullscreenElement) {
@@ -2175,7 +2032,6 @@ window.addEventListener("keydown", (event) => {
     step(-1);
     bumpChrome();
   } else if (event.key === "Escape") exitPlayer();
-  else if (event.key === "p") openPip();
   else if (event.key === "f") toggleFullscreen();
   else if (event.key === "r") startRecording();
   else if (event.key === "c" || event.key === "C") {

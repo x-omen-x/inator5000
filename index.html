@@ -21,7 +21,7 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="fonts.css" />
-    <link rel="stylesheet" href="styles.css?v=18" />
+    <link rel="stylesheet" href="styles.css?v=19" />
     <link rel="stylesheet" href="local/five-thousand.css?v=2" />
     <style>
       .slider input[type="range"] {
@@ -242,8 +242,7 @@
       <video id="overlay-vid" playsinline webkit-playsinline preload="auto"></video>
       <audio id="local-audio"></audio>
       <iframe id="sc-frame" class="hid" title="SoundCloud" allow="autoplay"></iframe>
-      <canvas id="pip-canvas" width="1280" height="720" aria-hidden="true"></canvas>
-      <video id="pip-video" playsinline muted autoplay controls aria-label="Picture in Picture slideshow"></video>
+      <canvas id="record-canvas" width="1280" height="720" aria-hidden="true"></canvas>
 
       <div class="rec-dot hid" id="rec-dot" aria-hidden="true">⏺</div>
 
@@ -278,7 +277,6 @@
           <button type="button" class="btn sm outline" id="hud-audio-repeat" aria-label="Soundtrack repeat: all tracks" aria-pressed="true" title="Repeat soundtrack">Repeat</button>
           <button type="button" class="btn sm outline" id="hud-audio-shuffle" aria-label="Shuffle soundtrack" aria-pressed="false" title="Shuffle soundtrack">Audio shuffle</button>
           <button type="button" class="btn sm outline rec-btn" id="hud-record" aria-label="Record reel" aria-pressed="false" title="Record slideshow" disabled>Record</button>
-          <button type="button" class="btn sm outline" id="pip-btn" aria-label="Picture in Picture" title="Picture in Picture">PiP</button>
           <button type="button" class="btn sm outline" id="full-btn" aria-label="Fullscreen">Full</button>
         </div>
       </div>
@@ -300,10 +298,10 @@
     <!-- The app-shell update check runs once at launch. Open pages remain on
          their current build until the user refreshes them. -->
     <script src="local/perf.js?v=1"></script>
-    <script src="local/live-update.js?v=4" data-build="2026-08-26-11"></script>
-    <script src="local/cloudyplap.js?v=17"></script>
+    <script src="local/live-update.js?v=4" data-build="2026-08-28-1"></script>
+    <script src="local/cloudyplap.js?v=18"></script>
     <script src="vendor/jszip.min.js"></script>
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=29"></script>
     <script src="local/splat.js?v=1"></script>
     <script src="local/five-thousand.js?v=3"></script>
   </body>

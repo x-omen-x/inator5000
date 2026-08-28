@@ -1213,8 +1213,7 @@ label.block {
   will-change: opacity;
 }
 
-#pip-canvas,
-#pip-video {
+#record-canvas {
   position: fixed;
   width: 2px;
   height: 2px;
@@ -1492,10 +1491,6 @@ label.block {
   height: 1px;
   opacity: 0 !important;
   pointer-events: none;
-}
-
-#still {
-  /* kept for PiP bitmap source */
 }
 
 .thumb.vid {

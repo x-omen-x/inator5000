@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-26-11",
-  "note": "brighter seamless TINA smoke, edge-safe puff and offline media-range playback",
+  "build": "2026-08-28-1",
+  "note": "remove Picture in Picture and restore ordinary image/video slideshow playback",
   "reload": true,
   "css": [
     "styles.css",

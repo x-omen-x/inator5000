@@ -1,10 +1,10 @@
-const CACHE = "omens-plapinator-v42";
+const CACHE = "omens-plapinator-v43";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=18",
-  "./app.js?v=28",
+  "./styles.css?v=19",
+  "./app.js?v=29",
   "./fonts.css",
   "./vendor/jszip.min.js",
   "./spurr.m4a",
@@ -24,11 +24,11 @@ const SHELL = [
   "./version.json",
   "./local/perf.js?v=1",
   "./local/live-update.js?v=4",
-  "./local/cloudyplap.js?v=17",
+  "./local/cloudyplap.js?v=18",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=3",
   "./local/five-thousand.css?v=2",
-  "./local/theme.css?v=17",
+  "./local/theme.css?v=18",
   "./local/fonts/title-faces.css?v=5",
   "./local/fonts/bungee.woff2",
   "./local/fonts/bungee-shade.woff2",

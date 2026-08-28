@@ -334,10 +334,9 @@
     player.appendChild(playerPipeSlot);
   }
 
-  // The compositor in app.js can include the same real smoke footage in the
-  // native PiP stream without creating another decoder or sending local media
-  // anywhere.
-  window.__tinaSmokePip = {
+  // Recording can include the same real smoke frame without creating another
+  // decoder or sending local media anywhere.
+  window.__tinaSmokeRecord = {
     draw(ctx, canvas) {
       if (!tinaActive || ambientVideo.readyState < 2) return;
       const sw = ambientVideo.videoWidth || 360;
@@ -602,7 +601,7 @@
     document.body.classList.remove("smoke-on");
     glow.remove();
     mascot.remove();
-    window.__tinaSmokePip = null;
+    window.__tinaSmokeRecord = null;
     window.__cloudyplap = false;
     // The stylesheets stay until the replacement's have loaded; the incoming
     // run tags and removes them.
