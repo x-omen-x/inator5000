@@ -261,7 +261,24 @@
     return video;
   }
 
-  const smokeSrc = BASE + "assets/smoke-wisp-loop.mp4";
+  // Keep the photographed motion as the back layer, then add transparent
+  // generated wisps in front. Versioned URLs prevent installed copies from
+  // retaining an older, much fainter smoke encode after a shell refresh.
+  const smokeSrc = BASE + "assets/smoke-wisp-loop.mp4?v=2";
+  const smokeAiSrc = BASE + "assets/smoke-wisps-ai.png?v=1";
+  const puffSrc = BASE + "assets/smoke-puff.mp4?v=2";
+  const puffAiSrc = BASE + "assets/smoke-puff-ai.png?v=1";
+
+  function smokeImage(src, className) {
+    const image = document.createElement("img");
+    image.className = className;
+    image.src = src;
+    image.alt = "";
+    image.decoding = "async";
+    image.draggable = false;
+    image.setAttribute("aria-hidden", "true");
+    return image;
+  }
   function smokeSurface(id) {
     const surface = document.createElement("div");
     surface.id = id;
@@ -283,19 +300,18 @@
 
   const smokeFrontLayer = document.createElement("div");
   smokeFrontLayer.id = "tina-smoke-front-layer";
-  const smokeFrontCanvas = document.createElement("canvas");
-  smokeFrontCanvas.className = "smoke-wisp-canvas";
-  smokeFrontCanvas.width = 720;
-  smokeFrontCanvas.height = 540;
-  smokeFrontCanvas.setAttribute("aria-hidden", "true");
-  smokeFrontLayer.appendChild(smokeFrontCanvas);
+  const smokeAiWisps = ["a", "b", "c"].map((variant) =>
+    smokeImage(smokeAiSrc, `smoke-ai-wisp smoke-ai-wisp-${variant}`),
+  );
+  smokeFrontLayer.append(...smokeAiWisps);
   mainSmokeFrontSurface.appendChild(smokeFrontLayer);
 
   const puffLayer = document.createElement("div");
   puffLayer.id = "tina-smoke-puff";
   puffLayer.setAttribute("aria-hidden", "true");
-  const puffVideo = smokeVideo(BASE + "assets/smoke-puff.mp4", false);
-  puffLayer.appendChild(puffVideo);
+  const puffVideo = smokeVideo(puffSrc, false);
+  const puffAiImage = smokeImage(puffAiSrc, "smoke-ai-puff");
+  puffLayer.append(puffVideo, puffAiImage);
 
   function makePipeButton(id) {
     const button = document.createElement("button");
@@ -353,10 +369,6 @@
   };
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const smokeFrontCtx = smokeFrontCanvas.getContext("2d", { alpha: false, desynchronized: true });
-  let smokeRenderFrame = 0;
-  let smokeRenderMode = "";
-  let lastSmokeTime = -1;
   let smokeDriftTimer = 0;
   let smokeWatchTimer = 0;
   let smokeWatchTime = -1;
@@ -365,46 +377,6 @@
 
   function smokeCanPlay() {
     return (tinaActive || document.body.classList.contains("smoke-fading")) && !document.hidden;
-  }
-
-  function scheduleSmokeFrame() {
-    if (!smokeCanPlay() || smokeRenderFrame) return;
-    if (typeof ambientVideo.requestVideoFrameCallback === "function") {
-      smokeRenderMode = "video";
-      smokeRenderFrame = ambientVideo.requestVideoFrameCallback(renderSmokeFront);
-    } else {
-      smokeRenderMode = "animation";
-      smokeRenderFrame = requestAnimationFrame(renderSmokeFront);
-    }
-  }
-
-  function renderSmokeFront(_now, metadata) {
-    smokeRenderFrame = 0;
-    smokeRenderMode = "";
-    if (!smokeCanPlay()) {
-      return;
-    }
-    const mediaTime = metadata?.mediaTime ?? ambientVideo.currentTime;
-    if (ambientVideo.readyState >= 2 && mediaTime !== lastSmokeTime) {
-      lastSmokeTime = mediaTime;
-      smokeFrontCtx.drawImage(ambientVideo, 0, 0, smokeFrontCanvas.width, smokeFrontCanvas.height);
-    }
-    scheduleSmokeFrame();
-  }
-
-  function startSmokeRenderer() {
-    scheduleSmokeFrame();
-  }
-
-  function stopSmokeRenderer() {
-    if (!smokeRenderFrame) return;
-    if (smokeRenderMode === "video" && typeof ambientVideo.cancelVideoFrameCallback === "function") {
-      ambientVideo.cancelVideoFrameCallback(smokeRenderFrame);
-    } else {
-      cancelAnimationFrame(smokeRenderFrame);
-    }
-    smokeRenderFrame = 0;
-    smokeRenderMode = "";
   }
 
   function stopSmokeWatchdog() {
@@ -438,8 +410,6 @@
         try { ambientVideo.currentTime = restartAt; } catch { /* metadata can still be settling */ }
       }
       ambientVideo.play().catch(() => undefined);
-      stopSmokeRenderer();
-      startSmokeRenderer();
       smokeWatchMisses = 0;
     }
     smokeWatchTime = ambientVideo.currentTime;
@@ -466,9 +436,11 @@
 
   function driftSmoke() {
     if (!tinaActive || reduceMotion.matches) return;
-    const backSeconds = setRandomDrift(ambientVideo, false);
-    const frontSeconds = setRandomDrift(smokeFrontCanvas, true);
-    smokeDriftTimer = later(driftSmoke, Math.min(backSeconds, frontSeconds) * 1000);
+    const driftSeconds = [
+      setRandomDrift(ambientVideo, false),
+      ...smokeAiWisps.map((wisp) => setRandomDrift(wisp, true)),
+    ];
+    smokeDriftTimer = later(driftSmoke, Math.min(...driftSeconds) * 1000);
   }
 
   function startSmokeDrift() {
@@ -497,11 +469,9 @@
     if (puffLayer.parentNode !== frontTarget) frontTarget.appendChild(puffLayer);
     if (canPlay) {
       ambientVideo.play().catch(() => undefined);
-      startSmokeRenderer();
       startSmokeWatchdog();
     } else {
       ambientVideo.pause();
-      stopSmokeRenderer();
       stopSmokeWatchdog();
     }
     if (!canPlay) {
@@ -552,14 +522,10 @@
   on(ambientVideo, "waiting", () => {
     if (!smokeCanPlay()) return;
     ambientVideo.play().catch(() => undefined);
-    stopSmokeRenderer();
-    startSmokeRenderer();
   });
   on(ambientVideo, "stalled", () => {
     if (!smokeCanPlay()) return;
     ambientVideo.play().catch(() => undefined);
-    stopSmokeRenderer();
-    startSmokeRenderer();
   });
   if (reduceMotion.addEventListener) {
     on(reduceMotion, "change", () => {
@@ -588,7 +554,6 @@
         /* already gone */
       }
     });
-    stopSmokeRenderer();
     stopSmokeWatchdog();
     playerSmokeBackSurface.remove();
     playerSmokeFrontSurface.remove();

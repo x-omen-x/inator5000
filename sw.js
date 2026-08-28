@@ -1,4 +1,4 @@
-const CACHE = "omens-plapinator-v43";
+const CACHE = "omens-plapinator-v44";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
@@ -24,11 +24,11 @@ const SHELL = [
   "./version.json",
   "./local/perf.js?v=1",
   "./local/live-update.js?v=4",
-  "./local/cloudyplap.js?v=18",
+  "./local/cloudyplap.js?v=19",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=3",
   "./local/five-thousand.css?v=2",
-  "./local/theme.css?v=18",
+  "./local/theme.css?v=19",
   "./local/fonts/title-faces.css?v=5",
   "./local/fonts/bungee.woff2",
   "./local/fonts/bungee-shade.woff2",
@@ -42,8 +42,10 @@ const SHELL = [
   "./local/fonts/ghastly-panic.ttf",
   "./local/assets/mascot-idle.png",
   "./local/assets/pipe.png?v=2",
-  "./local/assets/smoke-wisp-loop.mp4",
-  "./local/assets/smoke-puff.mp4",
+  "./local/assets/smoke-wisp-loop.mp4?v=2",
+  "./local/assets/smoke-wisps-ai.png?v=1",
+  "./local/assets/smoke-puff.mp4?v=2",
+  "./local/assets/smoke-puff-ai.png?v=1",
   "./local/assets/app-icon.png",
   "./local/assets/share-card.jpg",
   "./local/assets/chrome-fill.jpg",

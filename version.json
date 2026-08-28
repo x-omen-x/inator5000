@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-28-1",
-  "note": "remove Picture in Picture and restore ordinary image/video slideshow playback",
+  "build": "2026-08-28-2",
+  "note": "repair TINA smoke visibility, layering, and puff edge",
   "reload": true,
   "css": [
     "styles.css",
