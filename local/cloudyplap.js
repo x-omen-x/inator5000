@@ -300,8 +300,8 @@
 
   const smokeFrontLayer = document.createElement("div");
   smokeFrontLayer.id = "tina-smoke-front-layer";
-  const smokeAiWisps = ["a", "b", "c"].map((variant) =>
-    smokeImage(smokeAiSrc, `smoke-ai-wisp smoke-ai-wisp-${variant}`),
+  const smokeAiWisps = [smokeAiSrc, puffAiSrc, smokeAiSrc].map((src, index) =>
+    smokeImage(src, `smoke-ai-wisp smoke-ai-wisp-${"abc"[index]}`),
   );
   smokeFrontLayer.append(...smokeAiWisps);
   mainSmokeFrontSurface.appendChild(smokeFrontLayer);

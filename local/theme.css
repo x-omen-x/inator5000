@@ -75,14 +75,14 @@ body.theme-cloudyplap .sentinel-chitin-bracket {
 }
 
 #tina-smoke-back-layer {
-  opacity: 0.82;
-  filter: contrast(1.2) brightness(1.32) blur(0.08px);
+  opacity: 0.92;
+  filter: contrast(1.26) brightness(1.46) blur(0.08px);
   -webkit-mask-image: linear-gradient(to top, #000 0%, #000 75%, rgba(0, 0, 0, 0.76) 88%, transparent 100%);
   mask-image: linear-gradient(to top, #000 0%, #000 75%, rgba(0, 0, 0, 0.76) 88%, transparent 100%);
 }
 
 #tina-smoke-front-layer {
-  opacity: 0.96;
+  opacity: 0.84;
   mix-blend-mode: normal;
 }
 
@@ -143,27 +143,29 @@ body.theme-cloudyplap.smoke-on #tina-smoke-front-layer {
 }
 
 .smoke-ai-wisp-a {
-  left: -2%;
-  --wisp-low: 0.7;
-  --wisp-high: 0.94;
+  left: -7%;
+  height: 114%;
+  --wisp-low: 0.4;
+  --wisp-high: 0.58;
 }
 
 .smoke-ai-wisp-b {
-  left: 31%;
-  bottom: -14%;
-  height: 134%;
+  left: 32%;
+  bottom: -17%;
+  height: 102%;
   --smoke-flip: -1;
-  --wisp-low: 0.58;
-  --wisp-high: 0.84;
+  --wisp-low: 0.32;
+  --wisp-high: 0.5;
   animation-delay: -3.2s;
 }
 
 .smoke-ai-wisp-c {
-  right: -3%;
-  bottom: -9%;
-  height: 126%;
-  --wisp-low: 0.64;
-  --wisp-high: 0.9;
+  right: -10%;
+  bottom: -13%;
+  height: 108%;
+  --smoke-flip: -1;
+  --wisp-low: 0.34;
+  --wisp-high: 0.52;
   animation-delay: -6.1s;
 }
 
