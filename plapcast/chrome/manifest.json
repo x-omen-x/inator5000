@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "PlapCast for Omen's Plapinator",
+  "version": "0.1.0",
+  "minimum_chrome_version": "111",
+  "description": "Private local-network slideshow sync for Omen's Plapinator. Does not run on Gooninator.",
+  "host_permissions": [
+    "http://127.0.0.1:43123/*"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://omenplaps.netlify.app/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "ISOLATED"
+    },
+    {
+      "matches": ["https://omenplaps.netlify.app/*"],
+      "js": ["page-main.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
