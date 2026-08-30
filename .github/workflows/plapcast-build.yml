@@ -1,0 +1,53 @@
+name: Build PlapCast prototype
+
+on:
+  push:
+    branches:
+      - plapcast-multiroku
+    paths:
+      - "plapcast/**"
+      - ".github/workflows/plapcast-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Chrome bridge JavaScript
+        run: |
+          node --check plapcast/chrome/content.js
+          node --check plapcast/chrome/page-main.js
+          node --check plapcast/chrome/worker.js
+
+      - name: Build Mac app
+        run: |
+          chmod +x plapcast/mac/build-app.sh
+          plapcast/mac/build-app.sh
+
+      - name: Build Roku receiver
+        run: |
+          chmod +x plapcast/roku/make-zip.sh
+          plapcast/roku/make-zip.sh
+
+      - name: Package Chrome extension
+        run: |
+          mkdir -p plapcast/chrome/dist
+          cd plapcast/chrome
+          zip -qr dist/PlapCast-Chrome.zip manifest.json content.js page-main.js worker.js
+
+      - name: Package Mac app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent plapcast/mac/dist/PlapCast.app plapcast/mac/dist/PlapCast-Mac.zip
+
+      - name: Upload prototype bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlapCast-prototype
+          if-no-files-found: error
+          path: |
+            plapcast/mac/dist/PlapCast-Mac.zip
+            plapcast/roku/dist/PlapCast-Roku.zip
+            plapcast/chrome/dist/PlapCast-Chrome.zip
