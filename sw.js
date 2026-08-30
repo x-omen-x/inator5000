@@ -1,4 +1,4 @@
-const CACHE = "omens-plapinator-v45";
+const CACHE = "omens-plapinator-v46";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
@@ -25,6 +25,8 @@ const SHELL = [
   "./local/perf.js?v=1",
   "./local/live-update.js?v=4",
   "./local/cloudyplap.js?v=20",
+  "./local/receiver-mode.js?v=1",
+  "./lan-share.js?v=receiver-1",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=3",
   "./local/five-thousand.css?v=2",
@@ -56,9 +58,6 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  // Build a complete new shell before activating it. `reload` bypasses any
-  // stale immutable HTTP entry; a failed download leaves the previous worker
-  // and cache intact instead of installing a partial update.
   event.waitUntil(
     caches
       .open(CACHE)
@@ -79,9 +78,6 @@ self.addEventListener("activate", (event) => {
                 key !== CACHE &&
                 APP_CACHE_PREFIXES.some((prefix) => String(key).startsWith(prefix)),
             )
-            // These are app-shell Cache Storage entries only. User photos,
-            // videos and audio live in IndexedDB and are never read or erased
-            // by the service worker update path.
             .map((key) => caches.delete(key)),
         ),
       )
@@ -159,10 +155,6 @@ self.addEventListener("fetch", (event) => {
   if (/soundcloud\.com|snd\.sc|w\.soundcloud/.test(url.hostname)) return;
   if (url.origin !== self.location.origin) return;
 
-  // HTML media elements request later sections as byte ranges. Return a real
-  // 206 slice from the complete offline shell entry; serving the cached 200
-  // response to a Range request makes Chromium/WebKit stop after its first
-  // decoded buffer even though the element still reports `paused=false`.
   if (request.headers.has("range")) {
     event.respondWith(cachedRange(request));
     return;
