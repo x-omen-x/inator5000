@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="PlapCastScene" extends="Scene">
+  <interface>
+    <field id="launchArgs" type="assocarray" />
+    <field id="command" type="assocarray" />
+  </interface>
+
+  <children>
+    <Rectangle id="background" color="0x000000FF" />
+
+    <Poster id="posterA" opacity="0" loadDisplayMode="scaleToFit" />
+    <Poster id="posterB" opacity="0" loadDisplayMode="scaleToFit" />
+    <Poster id="posterC" opacity="0" loadDisplayMode="scaleToFit" />
+
+    <Label id="status" text="PLAPCAST · WAITING FOR OMENS PLAPINATOR" color="0x7CFF7CFF" horizAlign="center" vertAlign="center" />
+
+    <Animation id="fade" duration="0.2" easeFunction="linear">
+      <FloatFieldInterpolator id="fadeOut" key="[0.0, 1.0]" keyValue="[1.0, 0.0]" fieldToInterp="posterA.opacity" />
+      <FloatFieldInterpolator id="fadeIn" key="[0.0, 1.0]" keyValue="[0.0, 1.0]" fieldToInterp="posterB.opacity" />
+    </Animation>
+  </children>
+
+  <script type="text/brightscript"><![CDATA[
+    sub init()
+      m.bg = m.top.findNode("background")
+      m.status = m.top.findNode("status")
+      m.fade = m.top.findNode("fade")
+      m.fadeOut = m.top.findNode("fadeOut")
+      m.fadeIn = m.top.findNode("fadeIn")
+      m.posters = [m.top.findNode("posterA"), m.top.findNode("posterB"), m.top.findNode("posterC")]
+      m.names = ["posterA", "posterB", "posterC"]
+      m.ids = ["", "", ""]
+      m.front = -1
+      m.server = ""
+      m.token = ""
+
+      size = CreateObject("roDeviceInfo").GetUIResolution()
+      m.w = size.width
+      m.h = size.height
+      if m.w <= 0 then m.w = 1920
+      if m.h <= 0 then m.h = 1080
+
+      m.bg.width = m.w
+      m.bg.height = m.h
+      m.status.width = m.w
+      m.status.height = m.h
+      m.status.font.size = 24
+
+      for each poster in m.posters
+        poster.width = m.w
+        poster.height = m.h
+        poster.loadWidth = m.w
+        poster.loadHeight = m.h
+        poster.loadDisplayMode = "scaleToFit"
+        poster.scaleRotateCenter = [m.w / 2, m.h / 2]
+      end for
+
+      m.top.observeField("launchArgs", "onLaunchArgs")
+      m.top.observeField("command", "onCommand")
+      m.top.setFocus(true)
+    end sub
+
+    sub onLaunchArgs()
+      args = m.top.launchArgs
+      if args = invalid then return
+      if args.server <> invalid then m.server = args.server
+      if args.token <> invalid then m.token = args.token
+    end sub
+
+    function textValue(value as Dynamic, fallback = "" as String) as String
+      if value = invalid then return fallback
+      return value.ToStr()
+    end function
+
+    function numberValue(value as Dynamic, fallback = 0.0 as Float) as Float
+      if value = invalid then return fallback
+      return Val(value.ToStr())
+    end function
+
+    function mediaURL(id as String) as String
+      if m.server = "" or m.token = "" or id = "" then return ""
+      return m.server + "/v1/session/" + m.token + "/media/" + id
+    end function
+
+    function posterIndexFor(id as String) as Integer
+      if id = "" then return -1
+      for i = 0 to 2
+        if m.ids[i] = id then return i
+      end for
+      return -1
+    end function
+
+    function firstIndexNot(a as Integer, b as Integer) as Integer
+      for i = 0 to 2
+        if i <> a and i <> b then return i
+      end for
+      return 0
+    end function
+
+    sub stylePoster(index as Integer, fit as String, zoom as Float)
+      if index < 0 or index > 2 then return
+      poster = m.posters[index]
+      if fit = "cover" then
+        poster.loadDisplayMode = "scaleToFill"
+      else
+        poster.loadDisplayMode = "scaleToFit"
+      end if
+      if zoom < 1.0 then zoom = 1.0
+      if zoom > 2.4 then zoom = 2.4
+      poster.scale = [zoom, zoom]
+    end sub
+
+    sub loadInto(index as Integer, id as String, fit as String, zoom as Float)
+      if index < 0 or index > 2 or id = "" then return
+      url = mediaURL(id)
+      if url = "" then return
+      stylePoster(index, fit, zoom)
+      m.ids[index] = id
+      m.posters[index].uri = url
+    end sub
+
+    sub crossfadeTo(target as Integer, seconds as Float)
+      if target < 0 or target > 2 then return
+      if m.front < 0 then
+        for i = 0 to 2
+          m.posters[i].opacity = 0
+        end for
+        m.posters[target].opacity = 1
+        m.front = target
+        return
+      end if
+      if target = m.front then
+        m.posters[target].opacity = 1
+        return
+      end if
+
+      old = m.front
+      m.fade.control = "stop"
+      if seconds <= 0 then
+        m.posters[old].opacity = 0
+        m.posters[target].opacity = 1
+      else
+        if seconds > 2.0 then seconds = 2.0
+        m.posters[old].opacity = 1
+        m.posters[target].opacity = 0
+        m.fade.duration = seconds
+        m.fadeOut.fieldToInterp = m.names[old] + ".opacity"
+        m.fadeIn.fieldToInterp = m.names[target] + ".opacity"
+        m.fade.control = "start"
+      end if
+      m.front = target
+    end sub
+
+    sub showImage(current as String, nextID as String, fit as String, zoom as Float, crossfade as Float)
+      if current = "" then return
+      m.status.visible = false
+
+      oldFront = m.front
+      target = posterIndexFor(current)
+      if target < 0 then
+        if oldFront < 0 then
+          target = 0
+        else
+          target = firstIndexNot(oldFront, -1)
+        end if
+        loadInto(target, current, fit, zoom)
+      else
+        stylePoster(target, fit, zoom)
+      end if
+
+      crossfadeTo(target, crossfade)
+
+      if nextID <> "" and nextID <> current and posterIndexFor(nextID) < 0 then
+        spare = firstIndexNot(target, oldFront)
+        m.posters[spare].opacity = 0
+        loadInto(spare, nextID, fit, zoom)
+      end if
+    end sub
+
+    sub blankScreen()
+      m.fade.control = "stop"
+      for i = 0 to 2
+        m.posters[i].opacity = 0
+      end for
+      m.front = -1
+      m.status.text = "PLAPCAST · READY"
+      m.status.visible = true
+    end sub
+
+    sub onCommand()
+      info = m.top.command
+      if info = invalid then return
+      kind = textValue(info.kind)
+
+      if kind = "config" then
+        m.server = textValue(info.server)
+        m.token = textValue(info.token)
+        m.status.text = "PLAPCAST · CONNECTED"
+        m.status.visible = true
+        return
+      end if
+
+      if kind = "blank" then
+        blankScreen()
+        return
+      end if
+
+      if kind = "show" then
+        fit = textValue(info.fit, "contain")
+        zoom = numberValue(info.zoom, 1.0)
+        fade = numberValue(info.crossfade, 0.0)
+        showImage(textValue(info.current), textValue(info.next), fit, zoom, fade)
+      end if
+    end sub
+  ]]></script>
+</component>
