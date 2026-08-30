@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-30-2",
-  "note": "use pairing codes for image-only TV receiver discovery",
+  "build": "2026-08-30-3",
+  "note": "private LAN-only encrypted receiver transport",
   "reload": true,
   "css": [
     "styles.css",
@@ -8,6 +8,7 @@
   ],
   "js": [
     "local/cloudyplap.js",
+    "local/private-lan.js",
     "local/receiver-mode.js",
     "local/splat.js",
     "local/five-thousand.js"
