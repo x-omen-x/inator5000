@@ -38,6 +38,22 @@
     if (el) el.textContent = text;
   }
 
+  async function loadPrivateCore() {
+    if (window.privateLan) return true;
+    let script = document.querySelector('script[data-plap-private-lan]');
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "local/private-lan.js?v=1";
+      script.dataset.plapPrivateLan = "1";
+      document.body.appendChild(script);
+    }
+    for (let i = 0; i < 100; i++) {
+      if (window.privateLan) return true;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return false;
+  }
+
   function randomCode() {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     const bytes = crypto.getRandomValues(new Uint8Array(10));
@@ -69,7 +85,11 @@
 
   async function startReceiver() {
     stopOldLanCore();
-    window.privateLan?.stop?.();
+    if (!(await loadPrivateCore())) {
+      setUi("Private LAN core could not load. No cloud fallback was attempted.");
+      return;
+    }
+    window.privateLan.stop();
     document.body.classList.add("plap-receiver");
     const helper = rememberHelper();
     if (!helper) {
@@ -91,7 +111,11 @@
 
   async function startSender() {
     stopOldLanCore();
-    window.privateLan?.stop?.();
+    if (!(await loadPrivateCore())) {
+      setUi("Private LAN core could not load. No cloud fallback was attempted.");
+      return;
+    }
+    window.privateLan.stop();
     const slides = Array.isArray(appState?.slides) ? appState.slides : [];
     const images = slides.filter((slide) => slide?.kind === "image" && slide.file);
     const skipped = slides.length - images.length;
@@ -170,6 +194,7 @@
     addStyles();
     buildPanel();
     stopOldLanCore();
+    await loadPrivateCore();
     const params = new URLSearchParams(location.search);
     if (params.get("receiver") === "1" && helperValue()) await startReceiver();
   }
