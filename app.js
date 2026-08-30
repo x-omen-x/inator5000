@@ -1783,7 +1783,7 @@ $("sheet-close").onclick = $("sheet-ok").onclick = () => $("install-sheet").clas
 })();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=24").then((reg) => {
+  navigator.serviceWorker.register("sw.js?v=25").then((reg) => {
     reg.update();
   }).catch(() => undefined);
 }

@@ -1,4 +1,4 @@
-const CACHE = "gooninator-reloaded-v24";
+const CACHE = "gooninator-reloaded-v25";
 const SHELL = [
   "./",
   "./index.html",
@@ -20,8 +20,6 @@ const SHELL = [
   "./local/perf.js?v=1",
   "./local/live-update.js?v=2",
   "./local/splat.js?v=1",
-  "./local/five-thousand.js?v=2",
-  "./local/five-thousand.css?v=1",
   "./local/fonts/title-faces.css?v=3",
   "./local/fonts/bungee.woff2",
   "./local/fonts/bungee-shade.woff2",

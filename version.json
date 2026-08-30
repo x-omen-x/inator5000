@@ -1,12 +1,10 @@
 {
-  "build": "2026-08-30-gooninator-recovery-2",
-  "note": "Restore the dedicated Gooninator build.",
+  "build": "2026-08-30-gooninator-recovery-3",
+  "note": "Remove the 5000 header add-on.",
   "css": [
-    "styles.css",
-    "local/five-thousand.css"
+    "styles.css"
   ],
   "js": [
-    "local/splat.js",
-    "local/five-thousand.js"
+    "local/splat.js"
   ]
 }
