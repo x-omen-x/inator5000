@@ -1,6 +1,6 @@
 {
-  "name": "omens plapinator",
-  "short_name": "plapinator",
+  "name": "GOONINATOR RELOADED",
+  "short_name": "GOONINATOR",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -8,15 +8,16 @@
   "theme_color": "#39ff6a",
   "icons": [
     {
-      "src": "local/assets/app-icon.png",
+      "src": "favicon.svg",
       "sizes": "any",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "local/assets/app-icon.png",
+      "src": "favicon.svg",
       "sizes": "any",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }

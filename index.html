@@ -3,21 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>omens plapinator</title>
+    <title>GOONINATOR RELOADED</title>
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="omens plapinator" />
-    <meta property="og:image" content="local/assets/share-card.jpg" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:title" content="GOONINATOR RELOADED" />
     <meta name="theme-color" content="#010802" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="omens plapinator" />
+    <meta name="apple-mobile-web-app-title" content="GOONINATOR" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="icon" type="image/png" href="local/assets/app-icon.png" />
-    <link rel="apple-touch-icon" href="local/assets/app-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="fonts.css" />
-    <link rel="stylesheet" href="styles.css?v=14" />
+    <link rel="stylesheet" href="styles.css?v=15" />
     <link rel="stylesheet" href="local/five-thousand.css?v=1" />
     <style>
       .slider input[type="range"] {
@@ -54,8 +51,6 @@
       <div class="topbar">
         <div class="node-label" id="node-label">GOONINATOR RELOADED</div>
         <div class="topbar-actions">
-          <a class="link" id="theme-preview-link" href="?theme=1">Theme</a>
-          <a class="link" id="public-preview-link" href="?theme=0" hidden>Public</a>
           <button type="button" class="link" id="install-btn">Install App</button>
         </div>
       </div>
@@ -96,44 +91,6 @@
             <button type="button" class="btn sm ghost" id="zip-albums" title="Download each album as its own zip">⬇ zip albums</button>
           </div>
 
-          <div class="lan-bar">
-            <button type="button" class="btn sm outline" id="lan-share-btn" aria-pressed="false">⇄ LAN Share</button>
-            <span class="lan-state" id="lan-state">off</span>
-            <button type="button" class="btn sm ghost" id="lan-opts-btn">Options</button>
-            <button type="button" class="btn sm outline" id="lan-look-btn" hidden>Look again</button>
-          </div>
-          <p class="lan-note" id="lan-note">Share your photos, videos and music with another device on the same Wi-Fi.</p>
-
-          <div class="lan-panel hid" id="lan-panel">
-            <ol class="lan-steps" id="lan-steps">
-              <li>Open this page on the other device, on the same Wi-Fi.</li>
-              <li>Tap LAN Share on both devices.</li>
-              <li>Wait for the green “on” label. Everything you add now shows up on both.</li>
-            </ol>
-            <label class="block">Password <small>optional · type the same word on both devices</small>
-              <input id="lan-pass" class="field bio-field" type="text" autocomplete="off" spellcheck="false" placeholder="leave empty to pair automatically" />
-            </label>
-            <label class="block">Files sent to you
-              <select id="lan-receive-mode" class="field bio-field">
-                <option value="mirror">Show them only — nothing is kept</option>
-                <option value="save">Keep them on this device</option>
-              </select>
-            </label>
-            <details class="lan-offline">
-              <summary>No Wi-Fi? Pair the two devices by hand</summary>
-              <ol class="lan-steps" id="lan-offline-steps">
-                <li>On this device, tap Make invite and copy the code that appears.</li>
-                <li>Paste it in the box on the other device and tap Use / answer code.</li>
-                <li>Copy the reply it gives you, paste it back in the box here, and tap Use / answer code.</li>
-              </ol>
-              <div class="row">
-                <button type="button" class="btn sm outline" id="lan-make-invite">Make invite</button>
-                <button type="button" class="btn sm outline" id="lan-use-code">Use / answer code</button>
-              </div>
-              <textarea id="lan-code" class="field bio-field lan-code" rows="3" spellcheck="false" placeholder="paste the code here"></textarea>
-              <p class="lan-hint" id="lan-code-out"></p>
-            </details>
-          </div>
         </section>
 
         <section class="panel sentinel-window">
@@ -330,13 +287,10 @@
          their teardowns; it swaps them in place when a new build lands, with no
          reload. Keep new feature work in local/*.js so it stays hot-swappable. -->
     <script src="local/perf.js?v=1"></script>
-    <script src="local/live-update.js?v=2" data-build="2026-08-23-2"></script>
-    <script src="local/cloudyplap.js?v=4" data-hot="local/cloudyplap.js"></script>
+    <script src="local/live-update.js?v=2" data-build="2026-08-30-gooninator-recovery-1"></script>
     <script src="vendor/jszip.min.js"></script>
-    <script src="app.js?v=16"></script>
-    <script src="lan-share.js?v=3"></script>
+    <script src="app.js?v=17"></script>
     <script src="local/splat.js?v=1" data-hot="local/splat.js"></script>
     <script src="local/five-thousand.js?v=2" data-hot="local/five-thousand.js"></script>
-    <script src="local/lan-copy.js?v=1" data-hot="local/lan-copy.js"></script>
   </body>
 </html>

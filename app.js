@@ -1769,25 +1769,6 @@ $("install-btn").onclick = async () => {
 };
 $("sheet-close").onclick = $("sheet-ok").onclick = () => $("install-sheet").classList.add("hid");
 
-(function themePreviewGate() {
-  const link = $("theme-preview-link");
-  const pub = $("public-preview-link");
-  if (document.body.classList.contains("theme-cloudyplap")) {
-    if (link) link.hidden = true;
-    if (pub) pub.hidden = false;
-    return;
-  }
-  if (!link) return;
-  link.hidden = false;
-  if (pub) pub.hidden = true;
-  if (/\.netlify\.app$|\.netlify\.com$/i.test(location.hostname)) return;
-  fetch("local/cloudyplap.js", { method: "GET", cache: "no-store" })
-    .then((r) => {
-      if (!r.ok) link.remove();
-    })
-    .catch(() => link.remove());
-})();
-
 (function offerUpdateZips() {
   if (/\.netlify\.app$|\.netlify\.com$/i.test(location.hostname)) return;
   if (location.protocol === "file:") return;
@@ -1796,14 +1777,13 @@ $("sheet-close").onclick = $("sheet-ok").onclick = () => $("install-sheet").clas
   bar.innerHTML = `
     <p>The files are here. Tap one — it should download.</p>
     <a class="btn" href="gooninator-update.zip" download="gooninator-update.zip">Public update (Netlify)</a>
-    <a class="btn" href="omens-plapinator-local.zip" download="omens-plapinator-local.zip">Theme update (Mac / iOS, local only)</a>
     <button type="button" class="link" id="update-dl-x">hide this</button>`;
   document.body.appendChild(bar);
   document.getElementById("update-dl-x").onclick = () => bar.remove();
 })();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=22").then((reg) => {
+  navigator.serviceWorker.register("sw.js?v=24").then((reg) => {
     reg.update();
   }).catch(() => undefined);
 }
@@ -1919,7 +1899,6 @@ if ("serviceWorker" in navigator) {
   const brandTitle = $("brand-title");
   if (!brandTitle) return;
   function triggerGlitch() {
-    if (document.body.classList.contains("theme-cloudyplap")) return;
     brandTitle.classList.add("glitching");
     setTimeout(() => {
       brandTitle.classList.remove("glitching");

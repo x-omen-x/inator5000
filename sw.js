@@ -1,11 +1,9 @@
-const CACHE = "gooninator-reloaded-v23";
-const PACK = "cloudyplap-pack-v3";
+const CACHE = "gooninator-reloaded-v24";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./lan-share.js",
   "./fonts.css",
   "./vendor/jszip.min.js",
   "./spurr.m4a",
@@ -21,12 +19,9 @@ const SHELL = [
   "./version.json",
   "./local/perf.js?v=1",
   "./local/live-update.js?v=2",
-  "./local/cloudyplap.js?v=4",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=2",
   "./local/five-thousand.css?v=1",
-  "./local/lan-copy.js?v=1",
-  "./local/theme.css?v=3",
   "./local/fonts/title-faces.css?v=3",
   "./local/fonts/bungee.woff2",
   "./local/fonts/bungee-shade.woff2",
@@ -38,20 +33,9 @@ const SHELL = [
   "./local/fonts/eater.woff2",
   "./local/fonts/creepster.woff2",
   "./local/fonts/ghastly-panic.ttf",
-  "./local/assets/mascot-idle.png",
-  "./local/assets/mascot-wink-half.png",
-  "./local/assets/mascot-wink.png",
-  "./local/assets/mascot-tongue.png",
-  "./local/assets/app-icon.png",
-  "./local/assets/share-card.jpg",
-  "./local/assets/chrome-fill.jpg",
   "./local/assets/chrome-real.jpg",
   "./local/assets/beepboop.m4a",
   "./local/assets/sparkle/spark.svg",
-  "./local/assets/frame-green.png",
-  "./local/assets/smoke-loop.mp4",
-  "./local/assets/smoke-ref.jpg",
-  "./local/assets/smoke-wisps.jpg",
 ];
 
 self.addEventListener("install", (event) => {
@@ -66,7 +50,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => k !== CACHE && k !== PACK && !String(k).startsWith("cloudyplap-pack-"))
+          .filter((k) => k !== CACHE)
           .map((k) => caches.delete(k)),
       ),
     ),
@@ -100,15 +84,6 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       // A ?v= buster means a hot update asked for this exact build, so the
       // offline pack (which is keyed by bare path) must not answer it.
-      const busted = url.searchParams.has("v");
-      if (!busted && url.origin === location.origin && url.pathname.includes("/local/")) {
-        const pack = await caches.open(PACK);
-        const packed =
-          (await pack.match(req)) ||
-          (await pack.match(url.href)) ||
-          (await pack.match(url.pathname));
-        if (packed) return packed;
-      }
       const hit = await caches.match(req);
       if (hit) return hit;
       try {
