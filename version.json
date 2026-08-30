@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-28-3",
-  "note": "repair TINA smoke visibility, layering, and puff edge",
+  "build": "2026-08-30-1",
+  "note": "add image-only TV receiver mode",
   "reload": true,
   "css": [
     "styles.css",
@@ -8,6 +8,7 @@
   ],
   "js": [
     "local/cloudyplap.js",
+    "local/receiver-mode.js",
     "local/splat.js",
     "local/five-thousand.js"
   ]
