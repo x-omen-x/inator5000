@@ -7,7 +7,8 @@ let sessionToken = "";
 
 function allowedSender(sender) {
   try {
-    return new URL(sender?.tab?.url || "").origin === PRIVATE_ORIGIN;
+    const source = sender?.url || sender?.origin || sender?.tab?.url || "";
+    return new URL(source).origin === PRIVATE_ORIGIN;
   } catch {
     return false;
   }
