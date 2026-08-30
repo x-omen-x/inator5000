@@ -1,0 +1,7 @@
+title=PlapCast Receiver
+subtitle=Omen's Plapinator slideshow receiver
+major_version=0
+minor_version=1
+build_version=00001
+ui_resolutions=fhd,hd
+supports_input_launch=1
