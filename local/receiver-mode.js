@@ -18,9 +18,12 @@
       #screen-share-panel{margin-top:1rem;padding:1rem;border:1px solid rgba(57,255,106,.35);border-radius:12px;background:rgba(0,12,4,.72)}
       #screen-share-panel .screen-share-title{font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin:0 0 .35rem}
       #screen-share-panel .screen-share-copy{margin:.2rem 0 .8rem;color:var(--muted,#a9c9b0);font-size:.86rem;line-height:1.45}
-      #screen-share-panel .screen-share-row{display:flex;gap:.65rem;flex-wrap:wrap}
+      #screen-share-panel .screen-share-row{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center}
       #screen-share-panel button{min-height:44px}
       #screen-share-state{margin:.65rem 0 0;color:#7cff7c;font-size:.78rem}
+      #screen-share-code-wrap{margin:.8rem 0;padding:.75rem;border:1px dashed rgba(57,255,106,.35);border-radius:10px;background:rgba(0,0,0,.22)}
+      #screen-share-code{font:900 clamp(26px,7vw,42px)/1 monospace;letter-spacing:.16em;color:#7cff7c;margin:.2rem 0}
+      #screen-share-code-input{width:11rem;max-width:100%;text-transform:uppercase;letter-spacing:.12em;text-align:center}
       .lan-hud{position:fixed;left:50%;bottom:1rem;transform:translateX(-50%);z-index:99999;min-width:min(92vw,620px);padding:.65rem .8rem;border:1px solid rgba(57,255,106,.45);border-radius:10px;background:rgba(0,10,3,.94);color:#dfffe7;font:12px/1.35 monospace;box-shadow:0 0 24px rgba(0,255,65,.12)}
       .lan-hud-head{display:flex;align-items:center;gap:.55rem}.lan-hud-title{color:#7cff7c}.lan-hud-detail{flex:1;color:#a9c9b0}.lan-hud-stop{background:transparent;border:0;color:#a9c9b0;font-size:18px}.lan-hud-bar{height:3px;margin-top:.45rem;background:rgba(255,255,255,.09);overflow:hidden}.lan-hud-bar i{display:block;height:100%;background:#39ff6a}.lan-hud-peers{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}.lan-chip{border:1px solid rgba(57,255,106,.25);padding:.15rem .35rem;border-radius:999px}.lan-chip em{margin-left:.3rem;color:#7a9680;font-style:normal}.lan-chip b{margin-left:.3rem}
       #lan-save-sheet{display:none!important}
@@ -35,11 +38,39 @@
     if (el) el.textContent = text;
   }
 
+  function ensureLanPass(value) {
+    let input = $("lan-pass");
+    if (!input) {
+      input = document.createElement("input");
+      input.id = "lan-pass";
+      input.type = "hidden";
+      input.setAttribute("aria-hidden", "true");
+      document.body.appendChild(input);
+    }
+    input.value = String(value || "").trim().toUpperCase();
+    return input.value;
+  }
+
+  function makePairCode() {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    return [...bytes].map((b) => alphabet[b % alphabet.length]).join("");
+  }
+
+  function receiverCode() {
+    let code = sessionStorage.getItem("plap-receiver-code");
+    if (!/^[A-Z2-9]{6}$/.test(code || "")) {
+      code = makePairCode();
+      sessionStorage.setItem("plap-receiver-code", code);
+    }
+    return code;
+  }
+
   async function loadLanCore() {
     if (window.lanShare) return true;
     if (!document.querySelector('script[data-plap-lan-core]')) {
       const script = document.createElement("script");
-      script.src = `lan-share.js?v=receiver-1`;
+      script.src = `lan-share.js?v=receiver-2`;
       script.dataset.plapLanCore = "1";
       document.body.appendChild(script);
     }
@@ -64,6 +95,12 @@
     setUi("Starting receiver…");
     document.body.classList.add("plap-receiver");
     forceMirrorOnly();
+    const code = receiverCode();
+    ensureLanPass(code);
+    const codeEl = $("screen-share-code");
+    const wrap = $("screen-share-code-wrap");
+    if (codeEl) codeEl.textContent = code;
+    if (wrap) wrap.hidden = false;
     if (!(await loadLanCore())) {
       setUi("Receiver could not start in this browser.");
       return;
@@ -71,7 +108,7 @@
     try {
       if (window.lanShare.active) window.lanShare.stop("off");
       await window.lanShare.start();
-      setUi("Receiver on · waiting for images from another Plapinator on this Wi‑Fi");
+      setUi("Receiver on · enter this code on the sending device");
     } catch {
       setUi("Receiver could not start in this browser.");
     }
@@ -81,10 +118,17 @@
     const slides = Array.isArray(appState?.slides) ? appState.slides : [];
     const images = slides.filter((slide) => slide?.kind === "image" && slide.file);
     const skipped = slides.length - images.length;
+    const code = String($("screen-share-code-input")?.value || "").trim().toUpperCase();
+    if (!/^[A-Z2-9]{6}$/.test(code)) {
+      setUi("Enter the 6-character code shown on the receiver TV.");
+      $("screen-share-code-input")?.focus();
+      return;
+    }
     if (!images.length) {
       setUi("No images to send.");
       return;
     }
+    ensureLanPass(code);
     setUi(`Preparing ${images.length} image${images.length === 1 ? "" : "s"}${skipped ? ` · ${skipped} video${skipped === 1 ? "" : "s"} excluded` : ""}…`);
     if (!(await loadLanCore())) {
       setUi("Screen sharing could not start in this browser.");
@@ -114,8 +158,14 @@
     panel.id = "screen-share-panel";
     panel.innerHTML = `
       <p class="screen-share-title">Screens</p>
-      <p class="screen-share-copy">Send images directly to another Plapinator on this Wi‑Fi. Videos, audio, and overlays are excluded completely.</p>
+      <p class="screen-share-copy">Send images directly to another Plapinator. Videos, audio, and overlays are excluded completely.</p>
+      <div id="screen-share-code-wrap" hidden>
+        <small>PAIRING CODE</small>
+        <div id="screen-share-code">------</div>
+        <small>Type this on the device that has your images.</small>
+      </div>
       <div class="screen-share-row">
+        <input id="screen-share-code-input" class="field bio-field" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="TV CODE" aria-label="Receiver pairing code" />
         <button type="button" class="btn" id="screen-share-send">Send images to screens</button>
         <button type="button" class="btn outline" id="screen-share-receive">Receiver mode</button>
         <button type="button" class="btn ghost" id="screen-share-stop" hidden>Stop</button>
@@ -125,6 +175,9 @@
     if (status?.parentNode) status.parentNode.insertBefore(panel, status);
     else $("main-content")?.appendChild(panel);
 
+    $("screen-share-code-input").addEventListener("input", (event) => {
+      event.target.value = event.target.value.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 6);
+    });
     $("screen-share-send").onclick = startSender;
     $("screen-share-receive").onclick = startReceiver;
     $("screen-share-stop").onclick = () => {
