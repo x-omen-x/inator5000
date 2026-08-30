@@ -10,6 +10,7 @@
 
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const appState = typeof state !== "undefined" ? state : null;
 
   function addStyles() {
     const style = document.createElement("style");
@@ -50,8 +51,6 @@
   }
 
   function forceMirrorOnly() {
-    // The networking core's old optional persistence sheet is deliberately
-    // suppressed. Receiver media lives in memory for this session only.
     const observer = new MutationObserver(() => {
       const mirror = $("lan-keep-mirror");
       if (mirror) mirror.click();
@@ -70,6 +69,7 @@
       return;
     }
     try {
+      if (window.lanShare.active) window.lanShare.stop("off");
       await window.lanShare.start();
       setUi("Receiver on · waiting for images from another Plapinator on this Wi‑Fi");
     } catch {
@@ -78,7 +78,7 @@
   }
 
   async function startSender() {
-    const slides = Array.isArray(window.state?.slides) ? window.state.slides : [];
+    const slides = Array.isArray(appState?.slides) ? appState.slides : [];
     const images = slides.filter((slide) => slide?.kind === "image" && slide.file);
     const skipped = slides.length - images.length;
     if (!images.length) {
@@ -91,20 +91,19 @@
       return;
     }
 
-    // Build the WebRTC catalogue while only image slides are visible to the
-    // networking core. Restore the full local library immediately afterward.
-    const originalSlides = window.state.slides;
-    const originalTracks = window.state.tracks;
-    const originalOverlay = window.state.overlayFile;
+    if (window.lanShare.active) window.lanShare.stop("off");
+    const originalSlides = appState.slides;
+    const originalTracks = appState.tracks;
+    const originalOverlay = appState.overlayFile;
     try {
-      window.state.slides = images;
-      window.state.tracks = [];
-      window.state.overlayFile = null;
+      appState.slides = images;
+      appState.tracks = [];
+      appState.overlayFile = null;
       await window.lanShare.start();
     } finally {
-      window.state.slides = originalSlides;
-      window.state.tracks = originalTracks;
-      window.state.overlayFile = originalOverlay;
+      appState.slides = originalSlides;
+      appState.tracks = originalTracks;
+      appState.overlayFile = originalOverlay;
     }
     setUi(`Sharing ${images.length} image${images.length === 1 ? "" : "s"} · videos/audio never sent`);
   }
