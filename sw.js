@@ -1,4 +1,4 @@
-const CACHE = "omens-plapinator-v46";
+const CACHE = "omens-plapinator-v47";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
@@ -25,8 +25,8 @@ const SHELL = [
   "./local/perf.js?v=1",
   "./local/live-update.js?v=4",
   "./local/cloudyplap.js?v=20",
-  "./local/receiver-mode.js?v=1",
-  "./lan-share.js?v=receiver-1",
+  "./local/receiver-mode.js?v=2",
+  "./local/private-lan.js?v=1",
   "./local/splat.js?v=1",
   "./local/five-thousand.js?v=3",
   "./local/five-thousand.css?v=2",
