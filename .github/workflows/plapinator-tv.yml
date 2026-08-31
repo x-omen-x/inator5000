@@ -1,0 +1,50 @@
+name: Build Plapinator TV
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - tv-app
+    paths:
+      - "android-tv/**"
+      - ".github/workflows/plapinator-tv.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Expand TV source bundle
+        run: |
+          if compgen -G "android-tv/source.part-*" > /dev/null; then
+            cat android-tv/source.part-* > android-tv/source.tar.gz
+          fi
+          if [ -f android-tv/source.tar.gz ]; then
+            tar -xzf android-tv/source.tar.gz -C android-tv
+          fi
+
+      - name: Build installable debug APK
+        working-directory: android-tv
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: omens-plapinator-tv-debug
+          path: android-tv/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
