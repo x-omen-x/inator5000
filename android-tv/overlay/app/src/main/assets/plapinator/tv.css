@@ -1,0 +1,338 @@
+html, body {
+  min-height: 100%;
+  overscroll-behavior: none;
+}
+
+body.tv-mode {
+  font-size: clamp(17px, 1.25vw, 24px);
+}
+
+body.tv-mode .wrap {
+  width: min(92vw, 1680px);
+  padding-bottom: 9rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 1.5vw, 1.7rem);
+  align-items: start;
+}
+
+body.tv-mode .wrap > .sentinel-main-header,
+body.tv-mode .wrap > .tv-import-panel,
+body.tv-mode .wrap > #reel-sec,
+body.tv-mode .wrap > #status {
+  grid-column: 1 / -1;
+}
+
+body.tv-mode .panel {
+  padding: clamp(1.15rem, 1.8vw, 2rem);
+  margin: 0;
+}
+
+body.tv-mode .tv-hero {
+  min-height: clamp(310px, 34vw, 490px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
+  gap: clamp(2rem, 4vw, 5rem);
+  align-items: center;
+  padding: clamp(1.5rem, 3vw, 3.5rem);
+  overflow: hidden;
+  border: 1px solid rgba(57, 255, 106, 0.34);
+  background:
+    linear-gradient(105deg, rgba(0, 12, 3, 0.97) 0 58%, rgba(0, 50, 13, 0.55)),
+    radial-gradient(circle at 82% 45%, rgba(57, 255, 106, 0.18), transparent 42%);
+  box-shadow: inset 0 0 90px rgba(0, 255, 65, 0.055), 0 22px 70px rgba(0, 0, 0, 0.45);
+}
+
+.tv-hero-copy {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+}
+
+.tv-hero-kicker {
+  margin: 0 0 1rem;
+  color: #7cff92;
+  font: 800 clamp(0.72rem, 1vw, 1rem)/1.2 "Share Tech Mono", monospace;
+  letter-spacing: 0.18em;
+}
+
+.tv-title-glitch {
+  --slice-a: inset(20% 0 65% 0);
+  --slice-b: inset(62% 0 18% 0);
+  --slice-a-x: 0px;
+  --slice-b-x: 0px;
+  --title-skew: 0deg;
+  position: relative;
+  width: min(100%, 1040px);
+  isolation: isolate;
+  transform: skewX(var(--title-skew));
+  transform-origin: left center;
+  filter: drop-shadow(0 0 8px rgba(57, 255, 106, 0.82)) drop-shadow(0 0 28px rgba(57, 255, 106, 0.32));
+}
+
+.tv-title-glitch img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tv-title-base {
+  position: relative;
+  z-index: 1;
+}
+
+.tv-title-glitch.is-distorting .tv-title-base {
+  filter: url(#tv-title-warp) brightness(1.16) contrast(1.25);
+}
+
+.tv-title-slice {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.tv-title-glitch.is-distorting .tv-title-slice { opacity: 0.9; }
+.tv-title-slice-a {
+  clip-path: var(--slice-a);
+  transform: translateX(var(--slice-a-x));
+  filter: hue-rotate(115deg) brightness(1.8) blur(0.6px);
+}
+.tv-title-slice-b {
+  clip-path: var(--slice-b);
+  transform: translateX(var(--slice-b-x));
+  filter: hue-rotate(300deg) brightness(1.45);
+}
+
+.tv-title-filter {
+  position: absolute;
+  pointer-events: none;
+}
+
+.tv-hero-note {
+  max-width: 62ch;
+  margin: clamp(1rem, 2vw, 1.75rem) 0;
+  color: #c8e8cf;
+  font-size: clamp(1rem, 1.35vw, 1.35rem);
+  line-height: 1.5;
+}
+
+.tv-remote-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.2rem;
+  color: #8dbb97;
+  font: 700 clamp(0.72rem, 0.9vw, 0.95rem)/1.2 "Share Tech Mono", monospace;
+  text-transform: uppercase;
+}
+
+.tv-remote-map span { white-space: nowrap; }
+.tv-remote-map kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  margin-right: 0.3rem;
+  border: 1px solid rgba(124, 255, 146, 0.62);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #e8ffee;
+  box-shadow: inset 0 -3px 0 rgba(57, 255, 106, 0.15);
+  font: inherit;
+}
+
+.tv-mascot-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 460px);
+  margin: 0 auto;
+  transform: rotate(1.2deg);
+  border: 1px solid rgba(124, 255, 146, 0.42);
+  background: #001704;
+  box-shadow: 0 0 0 8px rgba(0, 0, 0, 0.4), 0 0 70px rgba(57, 255, 106, 0.22);
+}
+
+.tv-mascot-card::before,
+.tv-mascot-card::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  width: 24%;
+  height: 3px;
+  background: #39ff6a;
+  box-shadow: 0 0 14px #39ff6a;
+}
+.tv-mascot-card::before { top: -2px; left: -2px; }
+.tv-mascot-card::after { right: -2px; bottom: 2.25rem; }
+
+.tv-mascot-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.tv-mascot-card figcaption {
+  padding: 0.65rem 0.8rem;
+  color: #9effae;
+  background: #000;
+  font: 800 clamp(0.68rem, 0.8vw, 0.86rem)/1 "Share Tech Mono", monospace;
+  letter-spacing: 0.14em;
+  text-align: center;
+}
+
+body.tv-mode .tv-import-panel {
+  border-color: rgba(57, 255, 106, 0.7);
+  box-shadow: 0 0 35px rgba(57, 255, 106, 0.11);
+}
+
+.tv-copy {
+  max-width: 72ch;
+  color: #c4e9cb;
+  line-height: 1.55;
+}
+
+.tv-private-note {
+  display: block;
+  margin-top: 1rem;
+  color: #80b78c;
+  line-height: 1.5;
+}
+
+#tv-device-label {
+  color: #80b78c;
+  font: 700 0.75rem/1.2 "Share Tech Mono", monospace;
+  letter-spacing: 0.08em;
+}
+
+body.tv-mode button,
+body.tv-mode input,
+body.tv-mode [tabindex]:not([tabindex="-1"]) {
+  scroll-margin: 18vh 6vw;
+}
+
+body.tv-mode :focus-visible {
+  outline: 5px solid #f5fff7 !important;
+  outline-offset: 5px !important;
+  box-shadow: 0 0 0 10px rgba(57, 255, 106, 0.52), 0 0 30px rgba(57, 255, 106, 0.7) !important;
+}
+
+body.tv-mode .btn,
+body.tv-mode .pace {
+  min-height: 58px;
+  padding: 0.82rem 1.1rem;
+}
+
+body.tv-mode .drop,
+body.tv-mode #zip-all,
+body.tv-mode #zip-albums,
+body.tv-mode #add-folder,
+body.tv-mode #choose-album,
+body.tv-mode .rec-btn,
+body.tv-mode #theme-preview-link,
+body.tv-mode #public-preview-link,
+body.tv-mode #install-btn,
+body.tv-mode #update-dl,
+body.tv-mode #install-sheet {
+  display: none !important;
+}
+
+.tv-sheet-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 5vh 5vw;
+  background: rgba(0, 0, 0, 0.84);
+  backdrop-filter: blur(12px);
+}
+
+.tv-sheet {
+  width: min(100%, 1050px);
+  max-height: 86vh;
+  overflow: auto;
+  border: 2px solid #39ff6a;
+  border-radius: 18px;
+  padding: clamp(1.5rem, 3vw, 3rem);
+  background: #041006;
+  box-shadow: 0 0 70px rgba(57, 255, 106, 0.25);
+}
+
+.tv-sheet h2 {
+  margin-top: 0;
+  color: #7cff92;
+  font-size: clamp(1.7rem, 3vw, 3rem);
+}
+
+.tv-sheet code,
+.tv-pin {
+  display: block;
+  margin: 0.8rem 0;
+  padding: 0.8rem 1rem;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(57, 255, 106, 0.45);
+  border-radius: 10px;
+  background: #000;
+  color: #baffc6;
+  font: 800 clamp(1rem, 1.8vw, 1.5rem)/1.4 "Share Tech Mono", monospace;
+}
+
+.tv-pin {
+  width: max-content;
+  font-size: clamp(2rem, 5vw, 5rem);
+  letter-spacing: 0.18em;
+}
+
+.tv-sheet .fingerprint {
+  font-size: 0.72em;
+  color: #91bd99;
+}
+
+.tv-address-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.tv-address-list code {
+  margin: 0;
+}
+
+.tv-compatibility-note {
+  margin: 1.2rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(255, 197, 74, 0.62);
+  border-radius: 12px;
+  background: rgba(47, 31, 2, 0.76);
+  color: #ffe7ad;
+}
+
+.tv-compatibility-note small {
+  display: block;
+  margin-top: 0.75rem;
+  color: #e6c77d;
+  line-height: 1.45;
+}
+
+@media (min-width: 1200px) {
+  body.tv-mode .panel-head h2 { font-size: 1.75rem; }
+  body.tv-mode .field { min-height: 54px; }
+}
+
+body.tv-mode #player .pctl {
+  padding: 1.1rem 2.2rem 1.55rem;
+}
+
+body.tv-mode #player .pctl .btn {
+  min-width: 116px;
+  min-height: 60px;
+}
+
+@media (max-width: 1050px) {
+  body.tv-mode .wrap { grid-template-columns: 1fr; }
+  body.tv-mode .wrap > * { grid-column: 1 !important; }
+  body.tv-mode .tv-hero { grid-template-columns: 1fr minmax(220px, 34%); }
+}

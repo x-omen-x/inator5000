@@ -37,6 +37,12 @@ jobs:
             tar -xzf android-tv/source.tar.gz -C android-tv
           fi
 
+      - name: Apply TV source overlay
+        run: |
+          if [ -d android-tv/overlay ]; then
+            cp -a android-tv/overlay/. android-tv/
+          fi
+
       - name: Build installable debug APK
         working-directory: android-tv
         run: gradle --no-daemon :app:assembleDebug
@@ -53,12 +59,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android-tv/app/build/outputs/apk/debug/app-debug.apk Omens-Plapinator-TV-v0.2.apk
-          if gh release view tv-v0.2 >/dev/null 2>&1; then
-            gh release upload tv-v0.2 Omens-Plapinator-TV-v0.2.apk --clobber
+          cp android-tv/app/build/outputs/apk/debug/app-debug.apk Omens-Plapinator-TV-v0.3.apk
+          if gh release view tv-v0.3 >/dev/null 2>&1; then
+            gh release upload tv-v0.3 Omens-Plapinator-TV-v0.3.apk --clobber
           else
-            gh release create tv-v0.2 Omens-Plapinator-TV-v0.2.apk \
+            gh release create tv-v0.3 Omens-Plapinator-TV-v0.3.apk \
               --target "$GITHUB_SHA" \
-              --title "Omen's Plapinator TV v0.2" \
-              --notes "Safari-compatible secure local receiver. Media stays on your TV or local network; no SoundCloud, Tina mode, analytics, or cloud media upload."
+              --title "Omen's Plapinator TV v0.3" \
+              --notes "LAN receiver repair with active-network address selection, multiple local addresses, a secure TLS link, and a clearly labeled Safari compatibility link. Media stays on the TV or local network; no SoundCloud, Tina mode, analytics, rendezvous, or cloud media upload."
           fi
