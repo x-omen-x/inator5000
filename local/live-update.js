@@ -17,7 +17,9 @@
     /local\/[^/]+$/,
     "",
   );
-  const build = (script && script.dataset.build) || "0";
+  // Kept inside the updater for this isolated patch so the restored baseline
+  // index.html does not have to be rewritten just to change one data attribute.
+  const build = "2026-08-31-1";
   let manifest = null;
   let checked = false;
 
