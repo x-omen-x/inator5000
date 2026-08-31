@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import https from "node:https";
+import http from "node:http";
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,10 +11,17 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const CERT_DIR = path.join(ROOT, ".plap-lan");
-const KEY = path.join(CERT_DIR, "key.pem");
-const CERT = path.join(CERT_DIR, "cert.pem");
-const CONF = path.join(CERT_DIR, "openssl.cnf");
+const CA_KEY = path.join(CERT_DIR, "ca-key.pem");
+const CA_CERT = path.join(CERT_DIR, "ca-cert.pem");
+const CA_DER = path.join(CERT_DIR, "plapinator-ca.cer");
+const CA_CONF = path.join(CERT_DIR, "ca-openssl.cnf");
+const SERVER_KEY = path.join(CERT_DIR, "server-key.pem");
+const SERVER_CERT = path.join(CERT_DIR, "server-cert.pem");
+const SERVER_CSR = path.join(CERT_DIR, "server.csr");
+const SERVER_CONF = path.join(CERT_DIR, "server-openssl.cnf");
+const CA_SERIAL = path.join(CERT_DIR, "ca-cert.srl");
 const PORT = Number(process.env.PLAP_LAN_PORT || 8787);
+const SETUP_PORT = Number(process.env.PLAP_LAN_SETUP_PORT || 8788);
 const MAX_FRAME = 2 * 1024 * 1024;
 const clients = new Set();
 
@@ -42,12 +50,30 @@ function isPrivate(addr) {
   return false;
 }
 
-function ensureCertificate(ips) {
+function runOpenSSL(args) {
+  execFileSync("openssl", args, { stdio: "ignore" });
+}
+
+function ensureCertificates(ips) {
   fs.mkdirSync(CERT_DIR, { recursive: true, mode: 0o700 });
+
+  if (!fs.existsSync(CA_KEY) || !fs.existsSync(CA_CERT)) {
+    const caConf = `[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=v3_ca\n[dn]\nCN=Omen Plapinator Local CA\n[v3_ca]\nbasicConstraints=critical,CA:true\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid:always,issuer\n`;
+    fs.writeFileSync(CA_CONF, caConf, { mode: 0o600 });
+    runOpenSSL([
+      "req", "-x509", "-nodes", "-newkey", "rsa:2048",
+      "-keyout", CA_KEY, "-out", CA_CERT, "-days", "3650",
+      "-config", CA_CONF, "-extensions", "v3_ca",
+    ]);
+    fs.chmodSync(CA_KEY, 0o600);
+  }
+
+  runOpenSSL(["x509", "-in", CA_CERT, "-outform", "der", "-out", CA_DER]);
+
   const wanted = new Set(["127.0.0.1", ...ips]);
-  let regenerate = !fs.existsSync(KEY) || !fs.existsSync(CERT) || !fs.existsSync(CONF);
+  let regenerate = !fs.existsSync(SERVER_KEY) || !fs.existsSync(SERVER_CERT) || !fs.existsSync(SERVER_CONF);
   if (!regenerate) {
-    const old = fs.readFileSync(CONF, "utf8");
+    const old = fs.readFileSync(SERVER_CONF, "utf8");
     for (const ip of wanted) if (!old.includes(`=${ip}`)) regenerate = true;
   }
   if (!regenerate) return;
@@ -55,19 +81,46 @@ function ensureCertificate(ips) {
   const alt = ["DNS.1=localhost"];
   let n = 1;
   for (const ip of wanted) alt.push(`IP.${n++}=${ip}`);
-  const conf = `[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=v3_req\n[dn]\nCN=Omen Plapinator LAN\n[v3_req]\nsubjectAltName=@alt_names\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n[alt_names]\n${alt.join("\n")}\n`;
-  fs.writeFileSync(CONF, conf, { mode: 0o600 });
-  try {
-    execFileSync("openssl", [
-      "req", "-x509", "-nodes", "-newkey", "rsa:2048",
-      "-keyout", KEY, "-out", CERT, "-days", "3650",
-      "-config", CONF, "-extensions", "v3_req",
-    ], { stdio: "ignore" });
-    fs.chmodSync(KEY, 0o600);
-  } catch {
-    console.error("Could not create the local HTTPS certificate. macOS needs the built-in openssl command available.");
-    process.exit(1);
-  }
+  const serverConf = `[req]\nprompt=no\ndistinguished_name=dn\nreq_extensions=v3_req\n[dn]\nCN=Omen Plapinator LAN\n[v3_req]\nbasicConstraints=critical,CA:false\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=@alt_names\n[alt_names]\n${alt.join("\n")}\n`;
+  fs.writeFileSync(SERVER_CONF, serverConf, { mode: 0o600 });
+  runOpenSSL([
+    "req", "-new", "-nodes", "-newkey", "rsa:2048",
+    "-keyout", SERVER_KEY, "-out", SERVER_CSR,
+    "-config", SERVER_CONF,
+  ]);
+  fs.chmodSync(SERVER_KEY, 0o600);
+
+  const signArgs = [
+    "x509", "-req", "-in", SERVER_CSR,
+    "-CA", CA_CERT, "-CAkey", CA_KEY,
+    "-out", SERVER_CERT, "-days", "365", "-sha256",
+    "-extfile", SERVER_CONF, "-extensions", "v3_req",
+  ];
+  if (fs.existsSync(CA_SERIAL)) signArgs.push("-CAserial", CA_SERIAL);
+  else signArgs.push("-CAcreateserial");
+  runOpenSSL(signArgs);
+}
+
+function mobileConfig() {
+  const der = fs.readFileSync(CA_DER).toString("base64");
+  const rootUUID = crypto.randomUUID().toUpperCase();
+  const profileUUID = crypto.randomUUID().toUpperCase();
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>PayloadContent</key>\n  <array>\n    <dict>\n      <key>PayloadCertificateFileName</key><string>Omen Plapinator Local CA.cer</string>\n      <key>PayloadContent</key><data>${der}</data>\n      <key>PayloadDescription</key><string>Trusts only the local certificate authority created by your Plapinator Mac helper.</string>\n      <key>PayloadDisplayName</key><string>Omen Plapinator Local CA</string>\n      <key>PayloadIdentifier</key><string>local.omen.plapinator.ca</string>\n      <key>PayloadType</key><string>com.apple.security.root</string>\n      <key>PayloadUUID</key><string>${rootUUID}</string>\n      <key>PayloadVersion</key><integer>1</integer>\n    </dict>\n  </array>\n  <key>PayloadDescription</key><string>Local-only certificate for Omen's Plapinator Receiver Mode.</string>\n  <key>PayloadDisplayName</key><string>Omen Plapinator Local Trust</string>\n  <key>PayloadIdentifier</key><string>local.omen.plapinator.profile</string>\n  <key>PayloadOrganization</key><string>Omen's Plapinator</string>\n  <key>PayloadRemovalDisallowed</key><false/>\n  <key>PayloadType</key><string>Configuration</string>\n  <key>PayloadUUID</key><string>${profileUUID}</string>\n  <key>PayloadVersion</key><integer>1</integer>\n</dict>\n</plist>\n`;
+}
+
+function sendHeaders(res, type, extra = {}) {
+  res.writeHead(200, {
+    "content-type": type,
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    ...extra,
+  });
+}
+
+function setupPage(ip) {
+  const httpsUrl = `https://${ip}:${PORT}`;
+  return `<!doctype html>\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>Plapinator Private LAN Setup</title>\n<style>\nbody{font:17px system-ui;background:#050805;color:#d9ffe2;padding:2rem;max-width:48rem;margin:auto;line-height:1.45}\nh1,h2,a{color:#7cff7c} code{color:#b9ffbf;background:#101710;padding:.15rem .3rem;border-radius:.3rem}\n.card{border:1px solid #24452a;border-radius:14px;padding:1rem 1.2rem;margin:1rem 0;background:#091009}\n</style>\n<h1>Plapinator Private LAN setup</h1>\n<p>This page is coming directly from your Mac over your private LAN. It makes no outbound requests.</p>\n<div class="card">\n<h2>iPhone / iPad</h2>\n<p><a href="/plapinator-ca.mobileconfig">Install Omen Plapinator Local Trust</a></p>\n<p>After downloading: Settings → General → VPN & Device Management → install the profile. Then Settings → General → About → Certificate Trust Settings → enable full trust for <b>Omen Plapinator Local CA</b>.</p>\n</div>\n<div class="card">\n<h2>Sony / Android device</h2>\n<p><a href="/plapinator-ca.cer">Download CA certificate (.cer)</a></p>\n<p>If the device supports user CA certificates, install this certificate in its security / credentials settings.</p>\n</div>\n<div class="card">\n<h2>Test after trusting</h2>\n<p>Open <code>${httpsUrl}</code>. You should see <b>Plapinator Private LAN ✓</b> with no certificate warning.</p>\n</div>`;
 }
 
 function acceptKey(key) {
@@ -164,27 +217,26 @@ function consume(client) {
 }
 
 const ips = lanAddresses();
-ensureCertificate(ips);
+try {
+  ensureCertificates(ips);
+} catch {
+  console.error("Could not create the local CA/server certificate. macOS needs the built-in openssl command available.");
+  process.exit(1);
+}
 
-const server = https.createServer({
-  key: fs.readFileSync(KEY),
-  cert: fs.readFileSync(CERT),
+const httpsServer = https.createServer({
+  key: fs.readFileSync(SERVER_KEY),
+  cert: fs.readFileSync(SERVER_CERT),
 }, (req, res) => {
-  const remote = req.socket.remoteAddress;
-  if (!isPrivate(remote)) {
+  if (!isPrivate(req.socket.remoteAddress)) {
     res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
     return res.end("Private LAN only.\n");
   }
-  res.writeHead(200, {
-    "content-type": "text/html; charset=utf-8",
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-    "referrer-policy": "no-referrer",
-  });
-  res.end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Plapinator Private LAN</title><style>body{font:18px system-ui;background:#050805;color:#d9ffe2;padding:2rem;max-width:46rem;margin:auto}code{color:#7cff7c}h1{color:#7cff7c}</style><h1>Plapinator Private LAN ✓</h1><p>This local Mac helper is running. Nothing here connects to the internet, stores media, or logs media contents.</p><p>You can return to Omen’s Plapinator now.</p>`);
+  sendHeaders(res, "text/html; charset=utf-8");
+  res.end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Plapinator Private LAN</title><style>body{font:18px system-ui;background:#050805;color:#d9ffe2;padding:2rem;max-width:46rem;margin:auto}h1{color:#7cff7c}</style><h1>Plapinator Private LAN ✓</h1><p>The trusted encrypted helper is running. No cloud rendezvous, STUN, TURN, media storage, analytics, or outbound helper requests.</p>`);
 });
 
-server.on("upgrade", (req, socket) => {
+httpsServer.on("upgrade", (req, socket) => {
   if (!isPrivate(socket.remoteAddress) || req.url !== "/plap") return socket.destroy();
   const key = req.headers["sec-websocket-key"];
   const version = req.headers["sec-websocket-version"];
@@ -205,12 +257,47 @@ server.on("upgrade", (req, socket) => {
   socket.on("error", () => clients.delete(client));
 });
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log("\nOMEN'S PLAPINATOR — PRIVATE LAN HOST");
-  console.log("No cloud, no STUN/TURN, no media storage, no outbound network requests.\n");
-  if (!ips.length) console.log(`Trust page: https://127.0.0.1:${PORT}`);
-  for (const ip of ips) console.log(`Trust/helper address: https://${ip}:${PORT}`);
-  console.log("\n1. Keep this window open while using Receiver Mode.");
-  console.log("2. On EACH device, open the trust/helper address once and accept the local certificate warning.");
-  console.log("3. Enter that same Mac address in Plapinator's PRIVATE LAN HOST field.\n");
+const setupServer = http.createServer((req, res) => {
+  if (!isPrivate(req.socket.remoteAddress)) {
+    res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+    return res.end("Private LAN only.\n");
+  }
+  const ip = stripMapped(req.headers.host?.split(":")[0] || ips[0] || "127.0.0.1");
+
+  if (req.url === "/plapinator-ca.mobileconfig") {
+    sendHeaders(res, "application/x-apple-aspen-config", {
+      "content-disposition": 'attachment; filename="Omen-Plapinator-Local-Trust.mobileconfig"',
+    });
+    return res.end(mobileConfig());
+  }
+  if (req.url === "/plapinator-ca.cer") {
+    sendHeaders(res, "application/x-x509-ca-cert", {
+      "content-disposition": 'attachment; filename="Omen-Plapinator-Local-CA.cer"',
+    });
+    return res.end(fs.readFileSync(CA_DER));
+  }
+  if (req.url === "/plapinator-ca.pem") {
+    sendHeaders(res, "application/x-pem-file", {
+      "content-disposition": 'attachment; filename="Omen-Plapinator-Local-CA.pem"',
+    });
+    return res.end(fs.readFileSync(CA_CERT));
+  }
+  sendHeaders(res, "text/html; charset=utf-8");
+  res.end(setupPage(ip));
 });
+
+httpsServer.listen(PORT, "0.0.0.0", () => {
+  console.log("\nOMEN'S PLAPINATOR — PRIVATE LAN HOST");
+  console.log("No cloud, no STUN/TURN, no media storage, no outbound helper requests.\n");
+  for (const ip of ips) {
+    console.log(`Setup / certificate installer: http://${ip}:${SETUP_PORT}`);
+    console.log(`Trusted helper address:       https://${ip}:${PORT}`);
+  }
+  console.log("\nFIRST TIME on each device:");
+  console.log("1. Open the HTTP setup/certificate-installer address.");
+  console.log("2. Install/trust the Omen Plapinator Local CA using the on-screen steps.");
+  console.log("3. Test the HTTPS helper address. It should load without a certificate warning.");
+  console.log("4. Keep this Terminal window open while using Receiver Mode.\n");
+});
+
+setupServer.listen(SETUP_PORT, "0.0.0.0");
