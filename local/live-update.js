@@ -5,10 +5,9 @@
    service-worker navigation path can apply it. IndexedDB media is not touched.
    Offline launches keep using the already-cached shell.
 
-   The manual title / iOS-save pass is isolated in its own files. They are
-   loaded only after the existing app modules have mounted, so none of the
-   established UI, mascot, TINA mode, slideshow, or 5000 boot module is
-   replaced. */
+   The post-baseline enhancements are isolated in their own files. They load
+   after the established app modules have mounted, so the existing UI, mascot,
+   TINA mode and slideshow engine remain the source of truth. */
 (function launchUpdate() {
   if (window.__liveUpdate) return;
 
@@ -17,9 +16,7 @@
     /local\/[^/]+$/,
     "",
   );
-  // Kept inside the updater for this isolated patch so the restored baseline
-  // index.html does not have to be rewritten just to change one data attribute.
-  const build = "2026-08-31-1";
+  const build = "2026-08-31-2";
   let manifest = null;
   let checked = false;
 
@@ -37,8 +34,6 @@
       manifest = next;
       if (next.build === build) return;
 
-      // Prevent an old cached document from reloading forever if the network
-      // disappears between the check and the navigation.
       const reloadKey = `flashreel-update-reload:${next.build}`;
       if (sessionStorage.getItem(reloadKey) === "1") return;
       sessionStorage.setItem(reloadKey, "1");
@@ -58,8 +53,6 @@
       link.onload = resolve;
       link.onerror = resolve;
       document.head.appendChild(link);
-      // A cached/offline stylesheet can paint before some WebKit versions fire
-      // load. Do not hold the enhancement scripts hostage to that event.
       window.setTimeout(resolve, 1200);
     });
   }
@@ -77,13 +70,23 @@
     });
   }
 
-  async function loadManualEnhancements() {
-    // Wait until the baseline synchronous scripts have run. This means these
-    // files can only decorate the existing header / download controls; they do
-    // not race or replace the app's own construction code.
+  function removeFiveThousand() {
+    try { window.__hotTeardown?.("five-thousand"); } catch {}
+    document.querySelectorAll(".five-k-block,#five-k").forEach((node) => node.remove());
+    if (!document.getElementById("five-k-removal-style")) {
+      const style = document.createElement("style");
+      style.id = "five-k-removal-style";
+      style.textContent = ".five-k-block,#five-k{display:none!important}";
+      document.head.appendChild(style);
+    }
+  }
+
+  async function loadEnhancements() {
+    removeFiveThousand();
     await loadStyle(`${ROOT}local/manual-title.css?v=1`, "manual-title-css");
     await loadScript(`${ROOT}local/manual-title.js?v=1`, "manual-title-js");
     await loadScript(`${ROOT}local/ios-save-fix.js?v=1`, "ios-save-fix-js");
+    await loadScript(`${ROOT}local/cast.js?v=1`, "plapinator-cast-js");
   }
 
   window.__liveUpdate = {
@@ -96,14 +99,11 @@
     check: checkAtLaunch,
   };
 
-  // This is intentionally the only update check from the page. There are no
-  // update polling timers, focus/visibility/online listeners, hot swaps, or
-  // periodic background sync.
   checkAtLaunch();
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadManualEnhancements, { once: true });
+    document.addEventListener("DOMContentLoaded", loadEnhancements, { once: true });
   } else {
-    loadManualEnhancements();
+    loadEnhancements();
   }
 })();

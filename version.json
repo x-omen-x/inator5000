@@ -1,17 +1,16 @@
 {
-  "build": "2026-08-31-1",
-  "note": "manual Brutal Tooth title, mechanical 5000 CRT polish, and iOS installed-app ZIP save fix",
+  "build": "2026-08-31-2",
+  "note": "remove 5000 title lockup, repair shell cache busting, add Chrome Presentation cast receiver, and retain iOS ZIP save fix",
   "reload": true,
   "css": [
     "styles.css",
-    "local/five-thousand.css",
     "local/manual-title.css"
   ],
   "js": [
     "local/cloudyplap.js",
     "local/splat.js",
-    "local/five-thousand.js",
     "local/manual-title.js",
-    "local/ios-save-fix.js"
+    "local/ios-save-fix.js",
+    "local/cast.js"
   ]
 }

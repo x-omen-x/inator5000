@@ -1,0 +1,18 @@
+:root { color-scheme: dark; background: #000; }
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+#cast-stage { position: fixed; inset: 0; overflow: hidden; background: #000; --cast-zoom: 1; }
+.cast-main,
+#cast-overlay { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transform: scale(var(--cast-zoom)); transform-origin: 50% 50%; transition: opacity 180ms linear; }
+.cast-main.on { opacity: 1; }
+#cast-overlay { z-index: 5; object-fit: cover; }
+#cast-overlay.on { opacity: .65; }
+#cast-soundcloud { position: absolute; width: 1px; height: 1px; opacity: .001; border: 0; pointer-events: none; }
+#cast-smoke { position: absolute; inset: -15% -5% -5%; z-index: 8; width: 110%; height: 120%; object-fit: cover; mix-blend-mode: screen; opacity: 0; pointer-events: none; filter: contrast(1.08) brightness(.9); transition: opacity 700ms ease; }
+#cast-smoke.on { opacity: .78; }
+#cast-status { position: absolute; left: 50%; bottom: 5vh; z-index: 20; transform: translateX(-50%); max-width: min(90vw, 48rem); padding: .65rem .9rem; border: 1px solid rgba(83,255,124,.4); background: rgba(0,0,0,.72); color: #89ffa4; font-size: clamp(12px, 1.5vw, 18px); text-align: center; opacity: 0; transition: opacity 160ms linear; }
+#cast-status.on { opacity: 1; }
+#cast-stage.slow-pan .cast-main.on { animation: cast-pan 12s ease-in-out infinite alternate; }
+@keyframes cast-pan { from { transform: scale(calc(var(--cast-zoom) * 1.02)) translate3d(-1.2%, -.7%, 0); } to { transform: scale(calc(var(--cast-zoom) * 1.08)) translate3d(1.1%, .8%, 0); } }
+@media (prefers-reduced-motion: reduce) { #cast-stage.slow-pan .cast-main.on { animation: none; } }

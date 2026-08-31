@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <title>omens plapinator cast</title>
+  <link rel="stylesheet" href="local/cast-receiver.css?v=1" />
+</head>
+<body>
+  <main id="cast-stage" aria-label="omens plapinator cast receiver">
+    <img id="cast-still" class="cast-main" alt="" />
+    <video id="cast-video" class="cast-main" playsinline></video>
+    <video id="cast-overlay" playsinline></video>
+    <audio id="cast-audio"></audio>
+    <iframe id="cast-soundcloud" title="SoundCloud soundtrack" allow="autoplay"></iframe>
+    <video id="cast-smoke" src="local/assets/smoke-wisp-loop.mp4?v=2" muted loop playsinline preload="metadata" aria-hidden="true"></video>
+    <div id="cast-status" class="on" role="status" aria-live="polite">Connecting…</div>
+  </main>
+  <script src="local/cast-receiver.js?v=1"></script>
+</body>
+</html>

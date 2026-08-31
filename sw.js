@@ -1,4 +1,4 @@
-const CACHE = "omens-plapinator-v46";
+const CACHE = "omens-plapinator-v47";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
@@ -23,14 +23,13 @@ const SHELL = [
   "./fonts/matrix.woff",
   "./version.json",
   "./local/perf.js?v=1",
-  "./local/live-update.js?v=4",
+  "./local/live-update.js?v=5",
   "./local/cloudyplap.js?v=20",
   "./local/splat.js?v=1",
-  "./local/five-thousand.js?v=3",
-  "./local/five-thousand.css?v=2",
   "./local/manual-title.css?v=1",
   "./local/manual-title.js?v=1",
   "./local/ios-save-fix.js?v=1",
+  "./local/cast.js?v=1",
   "./local/theme.css?v=20",
   "./local/fonts/title-faces.css?v=5",
   "./local/fonts/brutal-tooth.ttf?v=1",
@@ -60,9 +59,6 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  // Build a complete new shell before activating it. `reload` bypasses any
-  // stale immutable HTTP entry; a failed download leaves the previous worker
-  // and cache intact instead of installing a partial update.
   event.waitUntil(
     caches
       .open(CACHE)
@@ -83,9 +79,6 @@ self.addEventListener("activate", (event) => {
                 key !== CACHE &&
                 APP_CACHE_PREFIXES.some((prefix) => String(key).startsWith(prefix)),
             )
-            // These are app-shell Cache Storage entries only. User photos,
-            // videos and audio live in IndexedDB and are never read or erased
-            // by the service worker update path.
             .map((key) => caches.delete(key)),
         ),
       )
@@ -163,10 +156,31 @@ self.addEventListener("fetch", (event) => {
   if (/soundcloud\.com|snd\.sc|w\.soundcloud/.test(url.hostname)) return;
   if (url.origin !== self.location.origin) return;
 
-  // HTML media elements request later sections as byte ranges. Return a real
-  // 206 slice from the complete offline shell entry; serving the cached 200
-  // response to a Range request makes Chromium/WebKit stop after its first
-  // decoded buffer even though the element still reports `paused=false`.
+  if (url.pathname.endsWith("/local/live-update.js")) {
+    const freshUpdater = new Request(new URL("./local/live-update.js?v=5", self.location.href));
+    event.respondWith(cacheFirst(freshUpdater));
+    return;
+  }
+
+  if (url.pathname.endsWith("/local/five-thousand.js")) {
+    event.respondWith(
+      Promise.resolve(
+        new Response('window.__hotTeardown?.("five-thousand");document.querySelectorAll(".five-k-block,#five-k").forEach((n)=>n.remove());', {
+          headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" },
+        }),
+      ),
+    );
+    return;
+  }
+  if (url.pathname.endsWith("/local/five-thousand.css")) {
+    event.respondWith(
+      Promise.resolve(new Response(".five-k-block,#five-k{display:none!important}", {
+        headers: { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "no-store" },
+      })),
+    );
+    return;
+  }
+
   if (request.headers.has("range")) {
     event.respondWith(cachedRange(request));
     return;
