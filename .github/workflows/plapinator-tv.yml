@@ -53,12 +53,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android-tv/app/build/outputs/apk/debug/app-debug.apk Omens-Plapinator-TV-v0.1.apk
-          if gh release view tv-v0.1 >/dev/null 2>&1; then
-            gh release upload tv-v0.1 Omens-Plapinator-TV-v0.1.apk --clobber
+          cp android-tv/app/build/outputs/apk/debug/app-debug.apk Omens-Plapinator-TV-v0.2.apk
+          if gh release view tv-v0.2 >/dev/null 2>&1; then
+            gh release upload tv-v0.2 Omens-Plapinator-TV-v0.2.apk --clobber
           else
-            gh release create tv-v0.1 Omens-Plapinator-TV-v0.1.apk \
+            gh release create tv-v0.2 Omens-Plapinator-TV-v0.2.apk \
               --target "$GITHUB_SHA" \
-              --title "Omen's Plapinator TV v0.1" \
-              --notes "Standalone Android TV installer. Media stays on your TV or local network; no SoundCloud, Tina mode, analytics, or cloud media upload."
+              --title "Omen's Plapinator TV v0.2" \
+              --notes "Safari-compatible secure local receiver. Media stays on your TV or local network; no SoundCloud, Tina mode, analytics, or cloud media upload."
           fi
