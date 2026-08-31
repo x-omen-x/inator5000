@@ -10,7 +10,7 @@ on:
       - ".github/workflows/plapinator-tv.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -48,3 +48,17 @@ jobs:
           path: android-tv/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish direct TV-browser download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android-tv/app/build/outputs/apk/debug/app-debug.apk Omens-Plapinator-TV-v0.1.apk
+          if gh release view tv-v0.1 >/dev/null 2>&1; then
+            gh release upload tv-v0.1 Omens-Plapinator-TV-v0.1.apk --clobber
+          else
+            gh release create tv-v0.1 Omens-Plapinator-TV-v0.1.apk \
+              --target "$GITHUB_SHA" \
+              --title "Omen's Plapinator TV v0.1" \
+              --notes "Standalone Android TV installer. Media stays on your TV or local network; no SoundCloud, Tina mode, analytics, or cloud media upload."
+          fi
