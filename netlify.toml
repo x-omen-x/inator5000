@@ -4,10 +4,15 @@
 # Lock the hosted app to its own code and device-local blob URLs. SoundCloud is
 # the only intentional third-party exception and receives no local photo,
 # video or audio data from the app.
+#
+# Receiver Mode needs WSS to a user-entered private LAN helper. CSP cannot
+# express RFC1918 CIDR ranges, so wss: is permitted here; private-lan.js rejects
+# non-local/public helper hosts before constructing the WebSocket and has no
+# remote fallback.
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'self' https://w.soundcloud.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; connect-src 'self' https://w.soundcloud.com; frame-src https://w.soundcloud.com; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
+    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'self' https://w.soundcloud.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; connect-src 'self' https://w.soundcloud.com wss:; frame-src https://w.soundcloud.com; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=(), publickey-credentials-get=(), picture-in-picture=()"
     Referrer-Policy = "no-referrer"
     X-Content-Type-Options = "nosniff"
