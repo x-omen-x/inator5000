@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-30-3",
-  "note": "private LAN-only encrypted receiver transport",
+  "build": "2026-08-30-4",
+  "note": "private LAN receiver CSP and local certificate trust setup",
   "reload": true,
   "css": [
     "styles.css",
