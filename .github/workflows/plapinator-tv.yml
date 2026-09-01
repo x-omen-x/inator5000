@@ -43,6 +43,24 @@ jobs:
             cp -a android-tv/overlay/. android-tv/
           fi
 
+      - name: Patch Sony Android compatibility crash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android-tv/app/src/main/java/dog/phantom/plapinatortv/SecureUploadServer.java')
+          s = p.read_text()
+          s = s.replace(
+              '} catch (Exception ignored) {\n            // A dropped sender must never bring down the TV player.\n        }',
+              '} catch (Throwable ignored) {\n            // A malformed/dropped sender or old-runtime linkage failure must never bring down the TV player.\n        }'
+          )
+          old = '''    private record Request(String method, String path, Map<String, String> headers,\n                           long contentLength, boolean chunked) {}'''
+          new = '''    private static final class Request {\n        final String method;\n        final String path;\n        final Map<String, String> headers;\n        final long contentLength;\n        final boolean chunked;\n\n        Request(String method, String path, Map<String, String> headers,\n                long contentLength, boolean chunked) {\n            this.method = method;\n            this.path = path;\n            this.headers = headers;\n            this.contentLength = contentLength;\n            this.chunked = chunked;\n        }\n    }'''
+          if old not in s:
+              raise SystemExit('Request record pattern not found')
+          s = s.replace(old, new)
+          p.write_text(s)
+          PY
+
       - name: Build installable debug APK
         working-directory: android-tv
         run: gradle --no-daemon :app:assembleDebug
@@ -66,5 +84,5 @@ jobs:
             gh release create tv-v0.3 Omens-Plapinator-TV-v0.3.apk \
               --target "$GITHUB_SHA" \
               --title "Omen's Plapinator TV v0.3" \
-              --notes "LAN receiver repair with active-network address selection, multiple local addresses, a secure TLS link, and a clearly labeled Safari compatibility link. Media stays on the TV or local network; no SoundCloud, Tina mode, analytics, rendezvous, or cloud media upload."
+              --notes "LAN receiver repair with Sony/older-Android compatibility hardening. Media stays on the TV or local network; no SoundCloud, Tina mode, analytics, rendezvous, or cloud media upload."
           fi
