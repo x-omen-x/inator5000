@@ -216,49 +216,72 @@ async function idbClear(store) {
 }
 
 function renderAlbums() {
-  const counts = new Map();
+  const groups = new Map();
   for (const slide of state.slides) {
-    const rec = counts.get(slide.album) || { n: 0, pics: 0, vids: 0 };
+    const linked = Boolean(slide.linkedFolderId);
+    const key = linked ? `linked:${slide.linkedFolderId}` : `album:${slide.album}`;
+    const rec = groups.get(key) || {
+      name: slide.album,
+      linked,
+      folderId: slide.linkedFolderId || "",
+      n: 0,
+      pics: 0,
+      vids: 0,
+    };
     rec.n += 1;
     if (slide.kind === "video") rec.vids += 1;
     else rec.pics += 1;
-    counts.set(slide.album, rec);
+    groups.set(key, rec);
   }
-  $("album-list").innerHTML = [...counts.entries()]
-    .map(([name, rec]) => {
+  $("album-list").innerHTML = [...groups.values()]
+    .map((rec) => {
       const bits = [];
       if (rec.pics) bits.push(`${rec.pics} photo${rec.pics === 1 ? "" : "s"}`);
       if (rec.vids) bits.push(`${rec.vids} video${rec.vids === 1 ? "" : "s"}`);
-      return `<li><div><p>${escapeHtml(name)}</p><small>${bits.join(" · ")}</small></div>
-        <div class="row" style="margin:0">
-          <button type="button" class="btn ghost sm" data-zip-album="${escapeHtml(name)}" title="Download this album">⬇</button>
-          <button type="button" class="btn ghost sm" data-remove-album="${escapeHtml(name)}">Remove</button>
-        </div></li>`;
+      if (rec.linked) bits.push("linked folder");
+      const encodedName = escapeHtml(rec.name);
+      const controls = rec.linked
+        ? `<button type="button" class="btn ghost sm" data-zip-linked-folder="${rec.folderId}" title="Download this linked folder">⬇</button>
+           <button type="button" class="btn ghost sm" data-remove-linked-folder="${rec.folderId}">Remove</button>`
+        : `<button type="button" class="btn ghost sm" data-zip-album="${encodedName}" title="Download this album">⬇</button>
+           <button type="button" class="btn ghost sm" data-remove-album="${encodedName}">Remove</button>`;
+      return `<li><div><p>${encodedName}</p><small>${bits.join(" · ")}</small></div>
+        <div class="row" style="margin:0">${controls}</div></li>`;
     })
     .join("");
 }
 
 function renderThumbs() {
   const sec = $("reel-sec");
-  if (!state.slides.length) {
+  if ($("player").classList.contains("on")) return;
+
+  // Linked folders are represented by one compact card in the media section.
+  // Rendering thousands of linked files as individual thumbnails defeats the
+  // point of linking a large on-disk library and creates unnecessary DOM work.
+  const localSlides = state.slides.filter((slide) => !slide.linkedFolderId);
+  if (!localSlides.length) {
     sec.classList.add("hid");
+    $("thumbs").innerHTML = "";
+    const pager = $("thumb-pager");
+    if (pager) pager.innerHTML = "";
     return;
   }
-  if ($("player").classList.contains("on")) return;
+
   sec.classList.remove("hid");
-  const total = state.slides.length;
+  const total = localSlides.length;
+  const linkedTotal = state.slides.length - total;
   const per = state.thumbsPerPage || 24;
   const pages = Math.max(1, Math.ceil(total / per));
   if (state.thumbPage >= pages) state.thumbPage = pages - 1;
   if (state.thumbPage < 0) state.thumbPage = 0;
   const start = state.thumbPage * per;
-  const pageSlides = state.slides.slice(start, start + per);
-  $("reel-title").textContent = `Reel · ${total}`;
+  const pageSlides = localSlides.slice(start, start + per);
+  $("reel-title").textContent = linkedTotal ? `Reel · ${total} local · ${linkedTotal} linked` : `Reel · ${total}`;
   $("thumbs").innerHTML = pageSlides
     .map((s) =>
       s.kind === "video"
         ? `<div class="thumb vid"><span>▶</span><span class="vid-badge">VID</span><button type="button" data-remove="${s.id}" aria-label="Remove">✕</button></div>`
-        : `<div class="thumb"><img src="${s.url}" alt=""><button type="button" data-remove="${s.id}" aria-label="Remove">✕</button></div>`,
+        : `<div class="thumb"><img src="${s.url}" alt="" loading="lazy"><button type="button" data-remove="${s.id}" aria-label="Remove">✕</button></div>`,
     )
     .join("");
   let pager = $("thumb-pager");
@@ -301,6 +324,14 @@ function renderTracks() {
         `<li class="${i === state.trackIndex ? "on" : ""}"><span class="t-name">${i === state.trackIndex ? "▶ " : ""}${escapeHtml(t.name)}</span><button type="button" class="btn ghost sm" data-remove-track="${t.id}">✕</button></li>`,
     )
     .join("");
+}
+
+let renderedMediaKey = "";
+
+function currentMediaRenderKey() {
+  const first = state.slides[0]?.id || "";
+  const last = state.slides[state.slides.length - 1]?.id || "";
+  return `${state.slides.length}:${first}:${last}`;
 }
 
 function renderSetup() {
@@ -424,8 +455,12 @@ function renderSetup() {
     btn.setAttribute("aria-pressed", String(selected));
   });
 
-  renderAlbums();
-  renderThumbs();
+  const mediaKey = currentMediaRenderKey();
+  if (mediaKey !== renderedMediaKey) {
+    renderedMediaKey = mediaKey;
+    renderAlbums();
+    renderThumbs();
+  }
   renderTracks();
 }
 
@@ -508,16 +543,22 @@ async function filesFromDataTransfer(dt) {
   return [...(dt?.files || [])].filter((f) => isImage(f) || isVideo(f));
 }
 
-async function walkDirectoryHandle(handle, pathPrefix, files) {
+function mediaKindFromName(name) {
+  if (/\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|svg)$/i.test(name || "")) return "image";
+  if (/\.(mp4|mov|webm|m4v|mkv)$/i.test(name || "")) return "video";
+  return null;
+}
+
+async function walkDirectoryHandle(handle, pathPrefix, entries) {
   for await (const entry of handle.values()) {
     if (entry.kind === "file") {
-      const file = await entry.getFile();
-      const rel = pathPrefix ? `${pathPrefix}/${file.name}` : file.name;
-      tagRelativePath(file, rel);
-      if (isImage(file) || isVideo(file)) files.push(file);
+      const kind = mediaKindFromName(entry.name);
+      if (!kind) continue;
+      const rel = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
+      entries.push({ path: rel, name: entry.name, kind });
     } else if (entry.kind === "directory") {
       const next = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
-      await walkDirectoryHandle(entry, next, files);
+      await walkDirectoryHandle(entry, next, entries);
     }
   }
 }
@@ -526,18 +567,69 @@ function linkedFolderSupported() {
   return typeof window.showDirectoryPicker === "function";
 }
 
-function linkedSlide(folderId, meta, file) {
+function linkedSlide(folderId, meta, rootHandle) {
   return {
     id: meta.id,
-    url: URL.createObjectURL(file),
+    url: "",
     album: meta.album,
     alt: meta.name,
     kind: meta.kind,
-    file,
+    file: null,
+    fileHandle: null,
+    rootHandle: rootHandle || null,
     order: meta.order,
     linkedFolderId: folderId,
     relativePath: meta.path,
   };
+}
+
+async function resolveLinkedFileHandle(slide) {
+  if (slide.fileHandle?.getFile) return slide.fileHandle;
+  if (!slide.rootHandle || !slide.relativePath) throw new Error("Linked folder is unavailable");
+  const parts = String(slide.relativePath).split("/").filter(Boolean);
+  if (!parts.length) throw new Error("Linked file path is missing");
+  let dir = slide.rootHandle;
+  for (let i = 0; i < parts.length - 1; i++) {
+    dir = await dir.getDirectoryHandle(parts[i]);
+  }
+  slide.fileHandle = await dir.getFileHandle(parts[parts.length - 1]);
+  return slide.fileHandle;
+}
+
+const linkedUrlLru = new Map();
+const LINKED_URL_LIMIT = 8;
+
+function touchLinkedUrl(slide) {
+  if (!slide?.linkedFolderId || !slide.url) return;
+  linkedUrlLru.delete(slide.id);
+  linkedUrlLru.set(slide.id, slide);
+}
+
+function releaseLinkedUrls(keepIds = new Set()) {
+  for (const [id, slide] of linkedUrlLru) {
+    if (linkedUrlLru.size <= LINKED_URL_LIMIT) break;
+    if (keepIds.has(id)) continue;
+    if (slide.url) URL.revokeObjectURL(slide.url);
+    slide.url = "";
+    slide.file = null;
+    decoded.delete(id);
+    linkedUrlLru.delete(id);
+  }
+}
+
+async function ensureSlideUrl(slide) {
+  if (!slide) throw new Error("Missing slide");
+  if (slide.url) {
+    touchLinkedUrl(slide);
+    return slide.url;
+  }
+  const fileHandle = await resolveLinkedFileHandle(slide);
+  const file = await fileHandle.getFile();
+  slide.file = file;
+  slide.url = URL.createObjectURL(file);
+  slide.alt = file.name || slide.alt;
+  touchLinkedUrl(slide);
+  return slide.url;
 }
 
 async function linkFolder() {
@@ -556,35 +648,32 @@ async function linkFolder() {
     return;
   }
 
-  const files = [];
-  setStatus(`Reading ${handle.name || "folder"}…`);
+  const media = [];
+  setStatus(`Indexing ${handle.name || "folder"}…`);
   try {
-    await walkDirectoryHandle(handle, "", files);
+    await walkDirectoryHandle(handle, "", media);
   } catch (err) {
     console.error("Folder scan failed:", err);
     setStatus("Could not read that folder. No files were changed.");
     return;
   }
-  const media = files.filter((file) => isImage(file) || isVideo(file));
   if (!media.length) {
     setStatus("No images or videos in that folder.");
     return;
   }
 
   const folderId = crypto.randomUUID();
+  const folderName = handle.name || "Linked Folder";
   let order = nextOrder(state.slides);
-  const entries = media.map((file) => {
-    const kind = isVideo(file) ? "video" : "image";
-    return {
-      id: crypto.randomUUID(),
-      path: file.webkitRelativePath || file.name,
-      name: file.name,
-      type: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
-      album: albumFrom(file, handle.name || "Photos"),
-      kind,
-      order: order++,
-    };
-  });
+  const entries = media.map((item) => ({
+    id: crypto.randomUUID(),
+    path: item.path,
+    name: item.name,
+    type: "",
+    album: folderName,
+    kind: item.kind,
+    order: order++,
+  }));
   const record = {
     id: `linked-folder:${folderId}`,
     folderId,
@@ -603,9 +692,9 @@ async function linkFolder() {
   }
 
   for (let i = 0; i < media.length; i++) {
-    state.slides.push(linkedSlide(folderId, entries[i], media[i]));
-    if (i === 0 || (i + 1) % 100 === 0 || i === media.length - 1) {
-      setStatus(`Linking ${i + 1} / ${media.length}…`);
+    state.slides.push(linkedSlide(folderId, entries[i], handle));
+    if (i === 0 || (i + 1) % 500 === 0 || i === media.length - 1) {
+      setStatus(`Indexing ${i + 1} / ${media.length}…`);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
@@ -628,19 +717,33 @@ async function restoreLinkedFolder(record, requestPermission) {
   if (!record?.handle || !Array.isArray(record.entries)) return { restored: 0, denied: false };
   const permission = await folderPermission(record.handle, requestPermission);
   if (permission !== "granted") return { restored: 0, denied: true };
-  const files = [];
-  await walkDirectoryHandle(record.handle, "", files);
-  const byPath = new Map(files.map((file) => [file.webkitRelativePath || file.name, file]));
+
   const existingIds = new Set(state.slides.map((slide) => slide.id));
+  const folderName = record.name || "Linked Folder";
   let restored = 0;
-  for (const meta of [...record.entries].sort((a, b) => a.order - b.order)) {
+  let normalized = false;
+  const entries = record.entries.map((meta) => {
+    if (meta.album === folderName) return meta;
+    normalized = true;
+    return { ...meta, album: folderName };
+  });
+
+  // Restoring a linked library is metadata-only. We do not walk the directory,
+  // call getFile(), or create Blob URLs here. Individual files are resolved by
+  // relative path only when the slideshow actually needs them.
+  for (const meta of [...entries].sort((a, b) => a.order - b.order)) {
     if (existingIds.has(meta.id)) continue;
-    const file = byPath.get(meta.path);
-    if (!file) continue;
-    state.slides.push(linkedSlide(record.folderId, meta, file));
+    state.slides.push(linkedSlide(record.folderId, meta, record.handle));
     existingIds.add(meta.id);
     restored += 1;
-    if (restored % 100 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+    if (restored % 1000 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  if (normalized) {
+    try {
+      await idbPut(HANDLE_STORE, [{ ...record, entries }]);
+    } catch (err) {
+      console.warn("Could not normalize linked-folder index:", err);
+    }
   }
   return { restored, denied: false };
 }
@@ -956,29 +1059,35 @@ async function prefetchAround(index) {
   if (!state.slides.length || prefetching) return;
   prefetching = true;
   const fast = state.speed === "hyper" || state.speed === "blitz";
-  // Mobile Safari decodes on the main thread and starves the audio graph when
-  // too many decodes are in flight, so keep the queue short there.
-  const ahead = IS_IOS ? (fast ? 2 : 4) : fast ? 3 : 8;
-  const lane = IS_IOS ? 1 : 4;
+  // Keep only a tiny working set of linked files alive. The previous version
+  // created a Blob URL for every file in a linked folder at startup, which made
+  // huge libraries expensive before the slideshow even began.
+  const ahead = IS_IOS ? 2 : fast ? 2 : 3;
+  const lane = IS_IOS ? 1 : 2;
+  const indices = upcomingIndices(index, ahead);
+  const keepIds = new Set(indices.map((i) => state.slides[i]?.id).filter(Boolean));
+  const prev = state.slides[(index - 1 + state.slides.length) % state.slides.length];
+  if (prev) keepIds.add(prev.id);
   try {
-    const targets = upcomingIndices(index, ahead)
-      .map((i) => state.slides[i])
-      .filter((slide) => slide && slide.kind === "image" && !decoded.has(slide.id));
+    const targets = indices.map((i) => state.slides[i]).filter(Boolean);
     for (let i = 0; i < targets.length; i += lane) {
       await Promise.all(
         targets.slice(i, i + lane).map(async (slide) => {
           try {
+            await ensureSlideUrl(slide);
+            if (slide.kind !== "image" || decoded.has(slide.id)) return;
             const img = new Image();
             img.src = slide.url;
             await img.decode();
             rememberDecode(slide.id);
           } catch {
-            /* skip */
+            /* unreadable/missing linked file: skip */
           }
         }),
       );
     }
   } finally {
+    releaseLinkedUrls(keepIds);
     prefetching = false;
   }
 }
@@ -1063,11 +1172,27 @@ function showVideoSlide(slide) {
   });
 }
 
-function showSlide() {
+let slideLoadToken = 0;
+let slideLoading = false;
+
+async function showSlide() {
+  const token = ++slideLoadToken;
   const slide = state.slides[state.index];
   if (!slide) return;
+  slideLoading = true;
+  try {
+    await ensureSlideUrl(slide);
+  } catch (err) {
+    if (token === slideLoadToken) slideLoading = false;
+    console.error("Could not read slide:", slide.alt, err);
+    setStatus(`Could not read ${slide.alt || "that linked file"}.`);
+    return;
+  }
+  if (token !== slideLoadToken || state.slides[state.index] !== slide) return;
   if (slide.kind === "video") showVideoSlide(slide);
   else showImageSlide(slide);
+  slideLoading = false;
+  nextAt = performance.now() + randomPace();
   prefetchAround(state.index);
   const skipVid = $("skip-video-btn");
   if (skipVid) {
@@ -1418,7 +1543,7 @@ function startSlideLoop() {
   const tick = (ts) => {
     if (!state.playing) return;
     playRaf = requestAnimationFrame(tick);
-    if (videoHold) return;
+    if (videoHold || slideLoading) return;
     if (ts >= nextAt) {
       step(1);
       nextAt = ts + randomPace();
@@ -1774,6 +1899,11 @@ function downloadBlob(blob, name) {
 
 async function blobForSlide(slide) {
   if (slide.file) return slide.file;
+  if (slide.linkedFolderId) {
+    const handle = await resolveLinkedFileHandle(slide);
+    return handle.getFile();
+  }
+  if (!slide.url) throw new Error("Media is unavailable");
   const res = await fetch(slide.url);
   return res.blob();
 }
@@ -2060,11 +2190,33 @@ $("blends").onclick = (e) => {
 };
 
 $("album-list").onclick = async (e) => {
+  const linkedZipBtn = e.target.closest("[data-zip-linked-folder]");
+  if (linkedZipBtn) {
+    const folderId = linkedZipBtn.dataset.zipLinkedFolder;
+    const slides = state.slides.filter((s) => s.linkedFolderId === folderId);
+    await zipSlides(slides, slides[0]?.album || "linked-folder");
+    return;
+  }
+  const linkedRemoveBtn = e.target.closest("[data-remove-linked-folder]");
+  if (linkedRemoveBtn) {
+    const folderId = linkedRemoveBtn.dataset.removeLinkedFolder;
+    const removedSlides = state.slides.filter((s) => s.linkedFolderId === folderId);
+    removedSlides.forEach((s) => {
+      if (s.url) URL.revokeObjectURL(s.url);
+      linkedUrlLru.delete(s.id);
+    });
+    state.slides = state.slides.filter((s) => s.linkedFolderId !== folderId);
+    resetShuffleBag();
+    await idbDel(HANDLE_STORE, [`linked-folder:${folderId}`]);
+    renderSetup();
+    return;
+  }
+
   const zipBtn = e.target.closest("[data-zip-album]");
   if (zipBtn) {
     const name = zipBtn.dataset.zipAlbum;
     await zipSlides(
-      state.slides.filter((s) => s.album === name),
+      state.slides.filter((s) => !s.linkedFolderId && s.album === name),
       name,
     );
     return;
@@ -2072,13 +2224,12 @@ $("album-list").onclick = async (e) => {
   const btn = e.target.closest("[data-remove-album]");
   if (!btn) return;
   const name = btn.dataset.removeAlbum;
-  const removedSlides = state.slides.filter((s) => s.album === name);
+  const removedSlides = state.slides.filter((s) => !s.linkedFolderId && s.album === name);
   const ids = removedSlides.map((s) => s.id);
-  removedSlides.forEach((s) => URL.revokeObjectURL(s.url));
-  state.slides = state.slides.filter((s) => s.album !== name);
+  removedSlides.forEach((s) => { if (s.url) URL.revokeObjectURL(s.url); });
+  state.slides = state.slides.filter((s) => s.linkedFolderId || s.album !== name);
   resetShuffleBag();
   await idbDel(PHOTO_STORE, ids);
-  await removeLinkedSlides(removedSlides);
   renderSetup();
 };
 $("thumbs").onclick = async (e) => {
@@ -2086,7 +2237,7 @@ $("thumbs").onclick = async (e) => {
   if (!btn) return;
   const id = btn.dataset.remove;
   const slide = state.slides.find((s) => s.id === id);
-  if (slide) URL.revokeObjectURL(slide.url);
+  if (slide?.url) URL.revokeObjectURL(slide.url);
   state.slides = state.slides.filter((s) => s.id !== id);
   resetShuffleBag();
   await idbDel(PHOTO_STORE, [id]);
@@ -2116,7 +2267,8 @@ $("track-list").onclick = async (e) => {
   renderSetup();
 };
 $("clear-all").onclick = async () => {
-  state.slides.forEach((s) => URL.revokeObjectURL(s.url));
+  state.slides.forEach((s) => { if (s.url) URL.revokeObjectURL(s.url); });
+  linkedUrlLru.clear();
   state.slides = [];
   resetShuffleBag();
   await idbClear(PHOTO_STORE);
@@ -2299,23 +2451,9 @@ $("install-sheet").addEventListener("keydown", (event) => {
   }
 });
 
-(function offerUpdateZips() {
-  if (/\.netlify\.app$|\.netlify\.com$/i.test(location.hostname)) return;
-  if (location.protocol === "file:") return;
-  const bar = document.createElement("div");
-  bar.id = "update-dl";
-  bar.innerHTML = `
-    <p>Download the latest omens plapinator build.</p>
-    <a class="btn" href="omens-plapinator-update.zip" download="omens-plapinator-update.zip">Public build (Netlify)</a>
-    <a class="btn" href="omens-plapinator-local.zip" download="omens-plapinator-local.zip">Theme build (Mac / iOS, local only)</a>
-    <button type="button" class="link" id="update-dl-x">hide this</button>`;
-  document.body.appendChild(bar);
-  document.getElementById("update-dl-x").onclick = () => bar.remove();
-})();
-
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
-    .register("sw.js?v=35", { updateViaCache: "none" })
+    .register("sw.js?v=36", { updateViaCache: "none" })
     .then((reg) => reg.update().catch(() => undefined))
     .catch(() => undefined);
 }

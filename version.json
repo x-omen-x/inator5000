@@ -1,6 +1,6 @@
 {
-  "build": "2026-09-03-2",
-  "note": "add durable folder-linked media with slideshow preloading, and remove secondary screens and the public toggle",
+  "build": "2026-09-03-3",
+  "note": "compact linked folders, lazy-load linked media, remove obsolete 5000 module, and remove visible update-download controls",
   "reload": true,
   "css": [
     "styles.css",

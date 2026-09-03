@@ -16,7 +16,7 @@
     /local\/[^/]+$/,
     "",
   );
-  const build = "2026-09-03-2";
+  const build = "2026-09-03-3";
   let manifest = null;
   let checked = false;
 
