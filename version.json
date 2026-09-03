@@ -1,6 +1,6 @@
 {
-  "build": "2026-08-31-2",
-  "note": "remove 5000 title lockup, repair shell cache busting, add Chrome Presentation cast receiver, and retain iOS ZIP save fix",
+  "build": "2026-09-03-2",
+  "note": "add durable folder-linked media with slideshow preloading, and remove secondary screens and the public toggle",
   "reload": true,
   "css": [
     "styles.css",
@@ -10,7 +10,6 @@
     "local/cloudyplap.js",
     "local/splat.js",
     "local/manual-title.js",
-    "local/ios-save-fix.js",
-    "local/cast.js"
+    "local/ios-save-fix.js"
   ]
 }

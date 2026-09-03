@@ -522,6 +522,171 @@ async function walkDirectoryHandle(handle, pathPrefix, files) {
   }
 }
 
+function linkedFolderSupported() {
+  return typeof window.showDirectoryPicker === "function";
+}
+
+function linkedSlide(folderId, meta, file) {
+  return {
+    id: meta.id,
+    url: URL.createObjectURL(file),
+    album: meta.album,
+    alt: meta.name,
+    kind: meta.kind,
+    file,
+    order: meta.order,
+    linkedFolderId: folderId,
+    relativePath: meta.path,
+  };
+}
+
+async function linkFolder() {
+  if (!linkedFolderSupported()) {
+    $("folder-input").click();
+    return;
+  }
+  let handle;
+  try {
+    handle = await window.showDirectoryPicker({ mode: "read" });
+  } catch (err) {
+    if (err?.name !== "AbortError") {
+      console.error("Folder link failed:", err);
+      setStatus("Could not link that folder. No files were changed.");
+    }
+    return;
+  }
+
+  const files = [];
+  setStatus(`Reading ${handle.name || "folder"}…`);
+  try {
+    await walkDirectoryHandle(handle, "", files);
+  } catch (err) {
+    console.error("Folder scan failed:", err);
+    setStatus("Could not read that folder. No files were changed.");
+    return;
+  }
+  const media = files.filter((file) => isImage(file) || isVideo(file));
+  if (!media.length) {
+    setStatus("No images or videos in that folder.");
+    return;
+  }
+
+  const folderId = crypto.randomUUID();
+  let order = nextOrder(state.slides);
+  const entries = media.map((file) => {
+    const kind = isVideo(file) ? "video" : "image";
+    return {
+      id: crypto.randomUUID(),
+      path: file.webkitRelativePath || file.name,
+      name: file.name,
+      type: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
+      album: albumFrom(file, handle.name || "Photos"),
+      kind,
+      order: order++,
+    };
+  });
+  const record = {
+    id: `linked-folder:${folderId}`,
+    folderId,
+    name: handle.name || "Linked Folder",
+    handle,
+    entries,
+    createdAt: Date.now(),
+  };
+
+  try {
+    await idbPut(HANDLE_STORE, [record]);
+  } catch (err) {
+    console.error("Could not save folder link:", err);
+    setStatus("This browser could not remember the folder link. No files were added.");
+    return;
+  }
+
+  for (let i = 0; i < media.length; i++) {
+    state.slides.push(linkedSlide(folderId, entries[i], media[i]));
+    if (i === 0 || (i + 1) % 100 === 0 || i === media.length - 1) {
+      setStatus(`Linking ${i + 1} / ${media.length}…`);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+  resetShuffleBag();
+  renderSetup();
+  prefetchAround(state.index);
+  setStatus(`Linked ${media.length} item${media.length === 1 ? "" : "s"} from ${record.name} · originals stay in the folder`);
+}
+
+async function folderPermission(handle, request) {
+  if (!handle?.queryPermission) return "granted";
+  let permission = await handle.queryPermission({ mode: "read" });
+  if (permission !== "granted" && request && handle.requestPermission) {
+    permission = await handle.requestPermission({ mode: "read" });
+  }
+  return permission;
+}
+
+async function restoreLinkedFolder(record, requestPermission) {
+  if (!record?.handle || !Array.isArray(record.entries)) return { restored: 0, denied: false };
+  const permission = await folderPermission(record.handle, requestPermission);
+  if (permission !== "granted") return { restored: 0, denied: true };
+  const files = [];
+  await walkDirectoryHandle(record.handle, "", files);
+  const byPath = new Map(files.map((file) => [file.webkitRelativePath || file.name, file]));
+  const existingIds = new Set(state.slides.map((slide) => slide.id));
+  let restored = 0;
+  for (const meta of [...record.entries].sort((a, b) => a.order - b.order)) {
+    if (existingIds.has(meta.id)) continue;
+    const file = byPath.get(meta.path);
+    if (!file) continue;
+    state.slides.push(linkedSlide(record.folderId, meta, file));
+    existingIds.add(meta.id);
+    restored += 1;
+    if (restored % 100 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return { restored, denied: false };
+}
+
+async function restoreLinkedFolders(requestPermission = false) {
+  const records = await idbAll(HANDLE_STORE);
+  let restored = 0;
+  let denied = 0;
+  for (const record of records) {
+    try {
+      const result = await restoreLinkedFolder(record, requestPermission);
+      restored += result.restored;
+      if (result.denied) denied += 1;
+    } catch (err) {
+      console.error("Linked folder restore failed:", err);
+    }
+  }
+  const reconnect = $("reconnect-folders");
+  if (reconnect) reconnect.classList.toggle("hid", denied === 0);
+  state.slides.sort((a, b) => a.order - b.order);
+  if (restored) {
+    resetShuffleBag();
+    renderSetup();
+    prefetchAround(state.index);
+  }
+  return { restored, denied };
+}
+
+async function removeLinkedSlides(slides) {
+  const removed = new Map();
+  for (const slide of slides) {
+    if (!slide.linkedFolderId || !slide.relativePath) continue;
+    if (!removed.has(slide.linkedFolderId)) removed.set(slide.linkedFolderId, new Set());
+    removed.get(slide.linkedFolderId).add(slide.relativePath);
+  }
+  if (!removed.size) return;
+  const records = await idbAll(HANDLE_STORE);
+  for (const record of records) {
+    const paths = removed.get(record.folderId);
+    if (!paths) continue;
+    const entries = record.entries.filter((entry) => !paths.has(entry.path));
+    if (entries.length) await idbPut(HANDLE_STORE, [{ ...record, entries }]);
+    else await idbDel(HANDLE_STORE, [record.id]);
+  }
+}
+
 async function importFiles(files, namedAlbum) {
   const media = [...files].filter((f) => isImage(f) || isVideo(f));
   if (!media.length) {
@@ -1692,7 +1857,17 @@ $("audio-input").onchange = (e) => {
   e.target.value = "";
 };
 
-$("add-folder").onclick = () => $("folder-input").click();
+$("add-folder").onclick = linkFolder;
+if (!linkedFolderSupported()) $("add-folder").textContent = "Add Folder";
+$("reconnect-folders").onclick = async () => {
+  setStatus("Reconnecting folders…");
+  const result = await restoreLinkedFolders(true);
+  setStatus(
+    result.denied
+      ? "Folder access was not granted. Linked media remains unchanged."
+      : `Reconnected ${result.restored} item${result.restored === 1 ? "" : "s"}.`,
+  );
+};
 
 function bindDrop(el, onFiles) {
   el.ondragover = (e) => {
@@ -1897,11 +2072,13 @@ $("album-list").onclick = async (e) => {
   const btn = e.target.closest("[data-remove-album]");
   if (!btn) return;
   const name = btn.dataset.removeAlbum;
-  const ids = state.slides.filter((s) => s.album === name).map((s) => s.id);
-  state.slides.filter((s) => s.album === name).forEach((s) => URL.revokeObjectURL(s.url));
+  const removedSlides = state.slides.filter((s) => s.album === name);
+  const ids = removedSlides.map((s) => s.id);
+  removedSlides.forEach((s) => URL.revokeObjectURL(s.url));
   state.slides = state.slides.filter((s) => s.album !== name);
   resetShuffleBag();
   await idbDel(PHOTO_STORE, ids);
+  await removeLinkedSlides(removedSlides);
   renderSetup();
 };
 $("thumbs").onclick = async (e) => {
@@ -1913,6 +2090,7 @@ $("thumbs").onclick = async (e) => {
   state.slides = state.slides.filter((s) => s.id !== id);
   resetShuffleBag();
   await idbDel(PHOTO_STORE, [id]);
+  if (slide) await removeLinkedSlides([slide]);
   renderSetup();
 };
 $("track-list").onclick = async (e) => {
@@ -1942,6 +2120,7 @@ $("clear-all").onclick = async () => {
   state.slides = [];
   resetShuffleBag();
   await idbClear(PHOTO_STORE);
+  await idbClear(HANDLE_STORE);
   renderSetup();
 };
 $("zip-all").onclick = () => zipSlides(state.slides, "reel-all");
@@ -2120,25 +2299,6 @@ $("install-sheet").addEventListener("keydown", (event) => {
   }
 });
 
-(function themePreviewGate() {
-  const link = $("theme-preview-link");
-  const pub = $("public-preview-link");
-  if (document.body.classList.contains("theme-cloudyplap")) {
-    if (link) link.hidden = true;
-    if (pub) pub.hidden = false;
-    return;
-  }
-  if (!link) return;
-  link.hidden = false;
-  if (pub) pub.hidden = true;
-  if (/\.netlify\.app$|\.netlify\.com$/i.test(location.hostname)) return;
-  fetch("local/cloudyplap.js", { method: "GET", cache: "no-store" })
-    .then((r) => {
-      if (!r.ok) link.remove();
-    })
-    .catch(() => link.remove());
-})();
-
 (function offerUpdateZips() {
   if (/\.netlify\.app$|\.netlify\.com$/i.test(location.hostname)) return;
   if (location.protocol === "file:") return;
@@ -2155,7 +2315,7 @@ $("install-sheet").addEventListener("keydown", (event) => {
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
-    .register("sw.js?v=34", { updateViaCache: "none" })
+    .register("sw.js?v=35", { updateViaCache: "none" })
     .then((reg) => reg.update().catch(() => undefined))
     .catch(() => undefined);
 }
@@ -2370,6 +2530,10 @@ if ("serviceWorker" in navigator) {
     if (state.tracks.length && state.soundtrackMode === "off") state.soundtrackMode = "local";
     if (migrationFailed) {
       setStatus("Media loaded, but its saved order could not be upgraded. Browser storage may be full.");
+    }
+    const linked = await restoreLinkedFolders(false);
+    if (linked.denied) {
+      setStatus("Click Reconnect Folders to restore linked media from disk.");
     }
   } catch (err) {
     console.error("Storage restore error:", err);

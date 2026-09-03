@@ -5,7 +5,6 @@
 (function cloudyplap() {
   const NAME = "cloudyplap";
   window.__hotTeardown?.(NAME);
-  if (new URLSearchParams(location.search).get("theme") === "0") return;
   window.__cloudyplap = true;
 
   const SRC = document.currentScript?.src || "local/cloudyplap.js";
@@ -125,19 +124,6 @@
   if (node) node.textContent = TITLE;
   const kicker = document.getElementById("player-kicker");
   if (kicker) kicker.textContent = TITLE;
-
-  const topbar = document.querySelector(".topbar-actions");
-  if (topbar) {
-    document.getElementById("theme-preview-link")?.remove();
-    if (!document.getElementById("public-preview-link")) {
-      const back = document.createElement("a");
-      back.className = "link";
-      back.id = "public-preview-link";
-      back.href = "?theme=0";
-      back.textContent = "Public";
-      topbar.appendChild(back);
-    }
-  }
 
   document.querySelectorAll('link[rel="apple-touch-icon"]').forEach((l) => {
     l.href = BASE + "assets/app-icon.png";

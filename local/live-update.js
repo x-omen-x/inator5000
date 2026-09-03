@@ -16,7 +16,7 @@
     /local\/[^/]+$/,
     "",
   );
-  const build = "2026-08-31-2";
+  const build = "2026-09-03-2";
   let manifest = null;
   let checked = false;
 
@@ -86,7 +86,6 @@
     await loadStyle(`${ROOT}local/manual-title.css?v=1`, "manual-title-css");
     await loadScript(`${ROOT}local/manual-title.js?v=1`, "manual-title-js");
     await loadScript(`${ROOT}local/ios-save-fix.js?v=1`, "ios-save-fix-js");
-    await loadScript(`${ROOT}local/cast.js?v=1`, "plapinator-cast-js");
   }
 
   window.__liveUpdate = {

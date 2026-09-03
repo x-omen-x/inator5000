@@ -58,8 +58,6 @@
       <div class="topbar">
         <div class="node-label" id="node-label">OMENS PLAPINATOR</div>
         <div class="topbar-actions">
-          <a class="link" id="theme-preview-link" href="?theme=1">Theme</a>
-          <a class="link" id="public-preview-link" href="?theme=0" hidden>Public</a>
           <button type="button" class="link" id="install-btn">Install App</button>
         </div>
       </div>
@@ -90,7 +88,8 @@
           <label class="block">Album Name<input id="album-name" class="field bio-field" placeholder="My Album" /></label>
           <div class="row">
             <button type="button" class="btn hide-ios" id="choose-album">Choose Album</button>
-            <button type="button" class="btn outline" id="add-folder">Add Folder</button>
+            <button type="button" class="btn outline" id="add-folder">Link Folder</button>
+            <button type="button" class="btn outline hid" id="reconnect-folders">Reconnect Folders</button>
             <button type="button" class="btn ghost" id="loose-photos">Add Files</button>
           </div>
           <div class="drop" id="photo-drop">Drop images, videos, or a folder here (all subfolders included)</div>
@@ -298,10 +297,10 @@
     <!-- The app-shell update check runs once at launch. Open pages remain on
          their current build until the user refreshes them. -->
     <script src="local/perf.js?v=1"></script>
-    <script src="local/live-update.js?v=4" data-build="2026-08-28-3"></script>
-    <script src="local/cloudyplap.js?v=20"></script>
+    <script src="local/live-update.js?v=6" data-build="2026-09-03-2"></script>
+    <script src="local/cloudyplap.js?v=21"></script>
     <script src="vendor/jszip.min.js"></script>
-    <script src="app.js?v=29"></script>
+    <script src="app.js?v=30"></script>
     <script src="local/splat.js?v=1"></script>
     <script src="local/five-thousand.js?v=3"></script>
   </body>

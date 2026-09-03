@@ -1,10 +1,10 @@
-const CACHE = "omens-plapinator-v47";
+const CACHE = "omens-plapinator-v49";
 const APP_CACHE_PREFIXES = ["omens-plapinator-", "gooninator-reloaded-", "gooninator-local-", "cloudyplap-pack-"];
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=19",
-  "./app.js?v=29",
+  "./app.js?v=30",
   "./fonts.css",
   "./vendor/jszip.min.js",
   "./spurr.m4a",
@@ -23,13 +23,12 @@ const SHELL = [
   "./fonts/matrix.woff",
   "./version.json",
   "./local/perf.js?v=1",
-  "./local/live-update.js?v=5",
-  "./local/cloudyplap.js?v=20",
+  "./local/live-update.js?v=6",
+  "./local/cloudyplap.js?v=21",
   "./local/splat.js?v=1",
   "./local/manual-title.css?v=1",
   "./local/manual-title.js?v=1",
   "./local/ios-save-fix.js?v=1",
-  "./local/cast.js?v=1",
   "./local/theme.css?v=20",
   "./local/fonts/title-faces.css?v=5",
   "./local/fonts/brutal-tooth.ttf?v=1",
@@ -157,7 +156,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.endsWith("/local/live-update.js")) {
-    const freshUpdater = new Request(new URL("./local/live-update.js?v=5", self.location.href));
+    const freshUpdater = new Request(new URL("./local/live-update.js?v=6", self.location.href));
     event.respondWith(cacheFirst(freshUpdater));
     return;
   }
