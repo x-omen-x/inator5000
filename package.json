@@ -1,6 +1,1 @@
-{
-  "name": "omens-plapinator",
-  "version": "1.1.0",
-  "private": true,
-  "description": "Private, offline-first photo and video reel player."
-}
+{"name":"omenplaps-personal-web","version":"9.0.0","private":true,"scripts":{"build":"node --check core.js && node --check app.js && node --check sw.js"}}

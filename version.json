@@ -1,15 +1,1 @@
-{
-  "build": "2026-09-03-3",
-  "note": "compact linked folders, lazy-load linked media, remove obsolete 5000 module, and remove visible update-download controls",
-  "reload": true,
-  "css": [
-    "styles.css",
-    "local/manual-title.css"
-  ],
-  "js": [
-    "local/cloudyplap.js",
-    "local/splat.js",
-    "local/manual-title.js",
-    "local/ios-save-fix.js"
-  ]
-}
+{"version":"9000-web-20261010-v1","native_reference":"Plapinator9000-ACTOR-FIX-CLEAN-20261009","no_media_uploads":true,"media_storage":"references only; session reselect on iOS"}
